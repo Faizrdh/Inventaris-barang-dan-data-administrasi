@@ -1,0 +1,9 @@
+
+.nav-item.active {
+    background-color: #4c68af; /* Misalnya, warna biru */
+    color: white;
+}
+
+.nav-item.active a {
+    color: white; /* Agar teks di dalam link tetap berwarna putih */
+}
