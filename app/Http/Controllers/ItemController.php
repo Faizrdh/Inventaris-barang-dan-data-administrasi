@@ -22,35 +22,42 @@ class ItemController extends Controller
         return view('admin.master.barang.index',compact('jenisbarang','satuan','merk'));
     }
     public function list(Request $request): JsonResponse
-    {
-        $items = Item::with('category','unit','brand')->latest()->get();
-        if($request -> ajax()){
-            return DataTables::of($items)
-            ->addColumn('img',function($data){
-                if(empty($data->image)){
-                    return "<img src='".asset('default.png')."' style='width:100%;max-width:240px;aspect-ratio:1;object-fit:cover;padding:1px;border:1px solid #ddd'/>";
+{
+    $items = Item::with('category', 'unit', 'brand')->latest()->get();
+
+    if ($request->ajax()) {
+        return DataTables::of($items)
+            ->addColumn('img', function ($data) {
+                if (empty($data->image)) {
+                    return "<img src='" . asset('default.png') . "' style='width:100%;max-width:240px;aspect-ratio:1;object-fit:cover;padding:1px;border:1px solid #ddd'/>";
                 }
-                return "<img src='".asset('storage/barang/'.$data->image)."' style='width:100%;max-width:240px;aspect-ratio:1;object-fit:cover;padding:1px;border:1px solid #ddd'/>";
+                return "<img src='" . asset('storage/barang/' . $data->image) . "' style='width:100%;max-width:240px;aspect-ratio:1;object-fit:cover;padding:1px;border:1px solid #ddd'/>";
             })
-            -> addColumn('category_name',function($data){
+            ->addColumn('category_name', function ($data) {
                 return $data->category->name;
             })
-            -> addColumn('unit_name',function($data){
+            ->addColumn('unit_name', function ($data) {
                 return $data->unit->name;
             })
-            -> addColumn('brand_name',function($data){
-                return $data -> brand -> name;
+            ->addColumn('brand_name', function ($data) {
+                return $data->brand->name;
             })
-            -> addColumn('tindakan',function($data){
-                    $button = "<button class='ubah btn btn-success m-1' id='".$data->id."'><i class='fas fa-pen m-1'></i>".__("edit")."</button>";
-                    $button .= "<button class='hapus btn btn-danger m-1' id='".$data->id."'><i class='fas fa-trash m-1'></i>".__("delete")."</button>";
-                    return $button;
+            ->addColumn('tindakan', function ($data) {
+                $button = "<button class='ubah btn btn-success m-1' id='" . $data->id . "'><i class='fas fa-pen m-1'></i>" . __("edit") . "</button>";
+                $button .= "<button class='hapus btn btn-danger m-1' id='" . $data->id . "'><i class='fas fa-trash m-1'></i>" . __("delete") . "</button>";
+                return $button;
             })
-            ->rawColumns(['img','tindakan'])
-            -> make(true);
-
-        }
+            ->rawColumns(['img', 'tindakan'])
+            ->make(true);
     }
+
+    // Tambahkan return default jika request bukan ajax
+    return response()->json([
+        "message" => __("Invalid request type"),
+        "data" => $items
+    ])->setStatusCode(200);
+}
+
 
     public function save(Request $request): JsonResponse
     {

@@ -17,69 +17,98 @@ class ReportStockController extends Controller
         return view('admin.master.laporan.stok');
     }
 
-    public function list(Request $request):JsonResponse
-    {
-        if($request->ajax()){
-            if( empty($request->start_date) && empty($request->end_date)){
-                $data = Item::with('goodsOuts','goodsIns');
-            }else{
-                $data = Item::with('goodsOuts','goodsIns');
-                $data -> whereBetween('date_out',[$request->start_date,$request->end_date]);
-            }
-            $data -> latest() -> get();
-            return DataTables::of($data)
-            ->addColumn('jumlah_masuk', function ($item) {
-                $totalQuantity = $item->goodsIns->sum('quantity');
-                return $totalQuantity;
-            })
-            ->addColumn("jumlah_keluar", function ($item) {
-                $totalQuantity = $item->goodsOuts->sum('quantity');
-                return $totalQuantity;
-            })
-            ->addColumn("kode_barang", function ($item) {
-                return $item->code;
-            })
-            ->addColumn("stok_awal", function ($item) {
-                return $item->quantity;
-            })
-            ->addColumn("nama_barang", function ($item) {
-                return $item->name;
-            })
-            ->addColumn("total", function ($item) {
-                $totalQuantityIn = $item->goodsIns->sum('quantity');
-                $totalQuantityOut = $item->goodsOuts->sum('quantity');
-                $result = $item->quantity + $totalQuantityIn - $totalQuantityOut;
-                $result = max(0, $result);
-                if($result == 0){
-                    return "<span class='text-red font-weight-bold'>".$result."</span>";
+   public function list(Request $request): JsonResponse
+{
+    try {
+        if($request->ajax()) {
+            try {
+                if(empty($request->start_date) && empty($request->end_date)) {
+                    $data = Item::with('goodsOuts', 'goodsIns');
+                } else {
+                    $data = Item::with(['goodsOuts' => function($query) use ($request) {
+                        $query->whereBetween('date_out', [$request->start_date, $request->end_date]);
+                    }, 'goodsIns']);
                 }
-                return  "<span class='text-success font-weight-bold'>".$result."</span>";
-            })
-            ->rawColumns(['total'])
-            ->make(true);
+                
+                $data = $data->latest()->get();
+                
+                return DataTables::of($data)
+                    ->addColumn('jumlah_masuk', function ($item) {
+                        try {
+                            return $item->goodsIns ? $item->goodsIns->sum('quantity') : 0;
+                        } catch (\Exception $e) {
+                            \Illuminate\Support\Facades\Log::error('Error pada kolom jumlah_masuk: ' . $e->getMessage());
+                            return 0;
+                        }
+                    })
+                    ->addColumn("jumlah_keluar", function ($item) {
+                        try {
+                            return $item->goodsOuts ? $item->goodsOuts->sum('quantity') : 0;
+                        } catch (\Exception $e) {
+                            \Illuminate\Support\Facades\Log::error('Error pada kolom jumlah_keluar: ' . $e->getMessage());
+                            return 0;
+                        }
+                    })
+                    ->addColumn("kode_barang", function ($item) {
+                        try {
+                            return $item->code ?? 'Kode tidak tersedia';
+                        } catch (\Exception $e) {
+                            \Illuminate\Support\Facades\Log::error('Error pada kolom kode_barang: ' . $e->getMessage());
+                            return 'Error mendapatkan kode';
+                        }
+                    })
+                    ->addColumn("stok_awal", function ($item) {
+                        try {
+                            return $item->quantity ?? 0;
+                        } catch (\Exception $e) {
+                            \Illuminate\Support\Facades\Log::error('Error pada kolom stok_awal: ' . $e->getMessage());
+                            return 0;
+                        }
+                    })
+                    ->addColumn("nama_barang", function ($item) {
+                        try {
+                            return $item->name ?? 'Nama tidak tersedia';
+                        } catch (\Exception $e) {
+                            \Illuminate\Support\Facades\Log::error('Error pada kolom nama_barang: ' . $e->getMessage());
+                            return 'Error mendapatkan nama';
+                        }
+                    })
+                    ->addColumn("total", function ($item) {
+                        try {
+                            $totalQuantityIn = $item->goodsIns ? $item->goodsIns->sum('quantity') : 0;
+                            $totalQuantityOut = $item->goodsOuts ? $item->goodsOuts->sum('quantity') : 0;
+                            $result = ($item->quantity ?? 0) + $totalQuantityIn - $totalQuantityOut;
+                            $result = max(0, $result);
+                            
+                            if($result == 0){
+                                return "<span class='text-red font-weight-bold'>".$result."</span>";
+                            }
+                            return "<span class='text-success font-weight-bold'>".$result."</span>";
+                        } catch (\Exception $e) {
+                            \Illuminate\Support\Facades\Log::error('Error pada kolom total: ' . $e->getMessage());
+                            return "<span class='text-warning font-weight-bold'>Error</span>";
+                        }
+                    })
+                    ->rawColumns(['total'])
+                    ->make(true);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Error saat memproses data item: ' . $e->getMessage());
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Terjadi kesalahan saat memproses data',
+                    'details' => config('app.debug') ? $e->getMessage() : null
+                ], 500);
+            }
         }
-    }
-
-    public function grafik(Request $request): JsonResponse
-    {
-        if($request->has('month') && !empty($request->month) ){
-            $month = $request->month;
-            $currentMonth = preg_split("/[-\s]/", $month)[1];
-            $currentYear = preg_split("/[-\s]/", $month)[0];
-        }else{
-            $currentMonth = date('m');
-            $currentYear = date('Y');
-        }
-        $goodsInThisMonth = GoodsIn::whereMonth('date_received', $currentMonth)
-        ->whereYear('date_received', $currentYear)->sum('quantity');
-        $goodsOutThisMonth = GoodsOut::whereMonth('date_out', $currentMonth)
-        ->whereYear('date_out', $currentYear)->sum('quantity');
-        $totalStockThisMonth = max(0,$goodsInThisMonth - $goodsOutThisMonth);
+        
+        return response()->json(['message' => 'Request harus melalui AJAX'], 400);
+    } catch (\Exception $e) {
+        \Illuminate\Support\Facades\Log::error('Error pada controller list item: ' . $e->getMessage());
         return response()->json([
-            'month'=>$currentYear.'-'.$currentMonth,
-            'goods_in_this_month' => $goodsInThisMonth,
-            'goods_out_this_month' => $goodsOutThisMonth,
-            'total_stock_this_month' => $totalStockThisMonth,
-        ]);
+            'error' => true,
+            'message' => 'Terjadi kesalahan pada server',
+            'details' => config('app.debug') ? $e->getMessage() : null
+        ], 500);
     }
+}
 }

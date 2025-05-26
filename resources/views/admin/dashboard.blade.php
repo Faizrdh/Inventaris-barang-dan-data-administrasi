@@ -161,20 +161,6 @@
             </div>
           </div>
 
-          <div class="col-lg-3 col-6">
-            <!-- small box -->
-            <div class="small-box bg-yellow" style="color:white !important;">
-              <div class="inner">
-                <h3 id="total-pendapatan-bulan-ini">Rp. 0</h3>
-                <p class="font-weight-bold">{{ __("total income") }}</p>
-              </div>
-              <div class="icon">
-                <i class="ion ion-cash"></i>
-              </div>
-              <a href="" class="small-box-footer" style="color:white !important;">{{ __('messages.more-info') }} <i class="fas fa-arrow-circle-right"></i></a>
-            </div>
-          </div>
-
   </div>
 </div>
 

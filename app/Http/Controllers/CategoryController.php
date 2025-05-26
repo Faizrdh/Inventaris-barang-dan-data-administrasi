@@ -19,20 +19,27 @@ class CategoryController extends Controller
         return view('admin.master.barang.jenis');
     }
 
-    public function list(Request $request): JsonResponse
-    {
-        $category = Category::latest()->get();
-        if($request -> ajax()){
-            return DataTables::of($category)
+   public function list(Request $request): JsonResponse
+{
+    $category = Category::latest()->get();
+    
+    if($request->ajax()){
+        return DataTables::of($category)
             ->addColumn('tindakan',function($data){
                 $button = "<button class='ubah btn btn-success m-1' id='".$data->id."'><i class='fas fa-pen m-1'></i>".__("edit")."</button>";
                 $button .= "<button class='hapus btn btn-danger m-1' id='".$data->id."'><i class='fas fa-trash m-1'></i>".__("delete")."</button>";
                 return $button;
             })
             ->rawColumns(['tindakan'])
-            -> make(true);
-        }
+            ->make(true);
     }
+    
+    // Tambahkan return statement untuk kondisi non-ajax
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Request harus menggunakan AJAX'
+    ], 400); // Bad Request
+}
 
     public function save(CreateCategoryRequest $request): JsonResponse
     {

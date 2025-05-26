@@ -126,6 +126,15 @@
             </li>
         </ul>
         </li>
+
+        <li class="nav-item">
+          <a href="{{route('return.index')}}" class="nav-link text-white {{ request()->routeIs('return.*') ? 'active' : '' }}">
+            <i class="nav-icon fas fa-exchange-alt"></i>
+            <p>
+              {{ __("pengembalian") }}
+            </p>
+          </a>
+        </li>
         
         <li class="nav-item {{ request()->routeIs('laporan.*') ? 'menu-open' : '' }}">
           <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('laporan.*') ? 'active' : '' }}">

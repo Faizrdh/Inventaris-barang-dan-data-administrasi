@@ -16,20 +16,50 @@ class SupplierController extends Controller
     }
 
 
-    public function list(Request $request): JsonResponse
-    {
+   public function list(Request $request): JsonResponse
+{
+    try {
         $suppliers = Supplier::latest()->get();
-        if($request -> ajax()){
+        
+        if($request->ajax()){
             return DataTables::of($suppliers)
-            ->addColumn('tindakan',function($data){
-                $button = "<button class='ubah btn btn-success m-1' id='".$data->id."'><i class='fas fa-pen m-1'></i>".__("edit")."</button>";
-                $button .= "<button class='hapus btn btn-danger m-1' id='".$data->id."'><i class='fas fa-trash m-1'></i>".__("delete")."</button>";
-                return $button;
-            })
-            ->rawColumns(['tindakan'])
-            -> make(true);
+                ->addColumn('tindakan', function($data){
+                    $button = "<button class='ubah btn btn-success m-1' id='".$data->id."'><i class='fas fa-pen m-1'></i>".__("edit")."</button>";
+                    $button .= "<button class='hapus btn btn-danger m-1' id='".$data->id."'><i class='fas fa-trash m-1'></i>".__("delete")."</button>";
+                    return $button;
+                })
+                ->rawColumns(['tindakan'])
+                ->make(true);
         }
+        
+        // Menambahkan return untuk kondisi non-ajax
+        return response()->json([
+            'success' => true,
+            'data' => $suppliers,
+            'message' => 'Data supplier berhasil diambil'
+        ]);
+        
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        // Gunakan helper logger() untuk menghindari masalah dengan import Log
+        logger('Model not found: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Data tidak ditemukan'
+        ], 404);
+    } catch (\Illuminate\Database\QueryException $e) {
+        logger('Database error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Terjadi kesalahan pada database'
+        ], 500);
+    } catch (\Exception $e) {
+        logger('Error in list suppliers: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     public function save(Request $request): JsonResponse
     {

@@ -15,14 +15,14 @@ class Item extends Model
         'name','image','code',
         'price','quantity','category_id','brand_id',
         'unit_id',
-        'active'
+        'active',
+        'status' // Tambahkan kolom status
     ];
 
     public function category(): BelongsTo
     {
         return $this -> belongsTo(Category::class);
     }
-
 
     public function goodsIns():HasMany
     {
@@ -44,5 +44,9 @@ class Item extends Model
         return $this -> belongsTo(Brand::class);
     }
 
-
+    // Relasi ke ItemReturn
+    public function itemReturns(): HasMany
+    {
+        return $this->hasMany(ItemReturn::class, 'item_code', 'code');
+    }
 }

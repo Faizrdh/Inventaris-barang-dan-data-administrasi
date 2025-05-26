@@ -22,33 +22,46 @@ class EmployeeController extends Controller
     }
 
     public function list(Request $request): JsonResponse
-    {
-        $staff = User::with('role')->whereHas('role',function(Builder $builder){
-            $builder = $builder -> where('name','employee');
+{
+    try {
+        $staff = User::with('role')->whereHas('role', function(Builder $builder){
+            $builder = $builder->where('name', 'employee');
             if(Auth::user()->role->name != 'admin'){
-                $builder  ->
-                orWhere('name','admin')
-                -> orWhere('name','super_admin');
+                $builder->orWhere('name', 'admin')
+                       ->orWhere('name', 'super_admin');
             }
         })->latest()->get();
+        
         if(Auth::user()->role->name == 'employee'){
-            $id_staff = Role::where('name','employee')->fisrt()->id;
-            $staff = User::with('role')->where('role_id',$id_staff)->latest()->get();
+            $id_staff = Role::where('name', 'employee')->first()->id;
+            $staff = User::with('role')->where('role_id', $id_staff)->latest()->get();
         }
-        if($request -> ajax()){
+        
+        if($request->ajax()){
             return DataTables::of($staff)
-            ->addColumn('role_name',function($data){
-                return $data ->role-> name;
-            })
-            ->addColumn('tindakan',function($data){
-                $button = "<button class='ubah btn btn-success m-1' id='".$data->id."'><i class='fas fa-pen m-1'></i>".__("edit")."</button>";
-                $button .= "<button class='hapus btn btn-danger m-1' id='".$data->id."'><i class='fas fa-trash m-1'></i>".__("delete")."</button>";
-                return $button;
-            })
-            ->rawColumns(['tindakan'])
-            -> make(true);
+                ->addColumn('role_name', function($data){
+                    return $data->role->name;
+                })
+                ->addColumn('tindakan', function($data){
+                    $button = "<button class='ubah btn btn-success m-1' id='".$data->id."'><i class='fas fa-pen m-1'></i>".__("edit")."</button>";
+                    $button .= "<button class='hapus btn btn-danger m-1' id='".$data->id."'><i class='fas fa-trash m-1'></i>".__("delete")."</button>";
+                    return $button;
+                })
+                ->rawColumns(['tindakan'])
+                ->make(true);
         }
+        
+        return response()->json([
+            'success' => true,
+            'data' => $staff
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     public function save(Request $request): JsonResponse
     {

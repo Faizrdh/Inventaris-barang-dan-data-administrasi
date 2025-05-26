@@ -22,11 +22,16 @@ use App\Http\Controllers\LeaveApplicationController;
 use App\Http\Controllers\LeaveApprovalController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportFinancialController;
+use App\Http\Controllers\LandingPageController;
 
 
-Route::middleware(["localization"])-> group(function(){
-    Route::get('/',[LoginController::class,'index'])->name('login');
-    Route::post('/',[LoginController::class,'auth'])->name('login.auth');
+Route::middleware(["localization"])->group(function(){
+    // Jadikan LandingPage sebagai halaman utama
+    Route::get('/',[LandingPageController::class,'index'])->name('landing');
+    
+    // Pindahkan login ke path /login atau /auth
+    Route::get('/login',[LoginController::class,'index'])->name('login');
+    Route::post('/login',[LoginController::class,'auth'])->name('login.auth');
 });
 
 Route::middleware(['auth', "localization"])-> group(function(){
@@ -45,6 +50,8 @@ Route::middleware(['auth', "localization"])-> group(function(){
             Route::delete('/hapus','delete')->name('barang.delete');
         });
     });
+
+    // Add these routes to your routes/web.php file
 
     // jenis barang
     Route::controller(CategoryController::class)->prefix("barang/jenis")->group(function(){
@@ -135,6 +142,14 @@ Route::middleware(['admin.check'])->group(function () {
 });
 
  
+Route::middleware(['auth'])->group(function () {
+    Route::get('/return', [App\Http\Controllers\ReturnController::class, 'index'])->name('return.index');
+    Route::post('/return/save', [App\Http\Controllers\ReturnController::class, 'save'])->name('return.save');
+    Route::get('/return/{id}/edit', [App\Http\Controllers\ReturnController::class, 'edit'])->name('return.edit');
+    Route::put('/return/{id}', [App\Http\Controllers\ReturnController::class, 'update'])->name('return.update');
+    Route::delete('/return/{id}', [App\Http\Controllers\ReturnController::class, 'delete'])->name('return.delete');
+});
+
 
     // Transaksi  masuk
     Route::controller(TransactionInController::class)->prefix('/transaksi/masuk')->group(function(){

@@ -22,35 +22,41 @@ class TransactionOutController extends Controller
     }
 
     public function list(Request $request):JsonResponse
-    {
-        $goodsouts = GoodsOut::with('item','user','customer')->latest()->get();
-        if($request->ajax()){
-            return DataTables::of($goodsouts)
-            ->addColumn('quantity',function($data){
-                $item = Item::with("unit")->find($data -> item -> id);
-                return $data -> quantity ."/".$item -> unit -> name;
-            })
-            ->addColumn("date_received",function($data){
-                return Carbon::parse($data->date_received)->format('d F Y');
-            })
-            ->addColumn("kode_barang",function($data){
-                return $data -> item -> code;
-            })
-            ->addColumn("customer_name",function($data){
-                return $data -> customer -> name;
-            })
-            ->addColumn("item_name",function($data){
-                return $data -> item -> name;
-            })
-            ->addColumn('tindakan',function($data){
-                $button = "<button class='ubah btn btn-success m-1' id='".$data->id."'><i class='fas fa-pen m-1'></i>".__("edit")."</button>";
-                $button .= "<button class='hapus btn btn-danger m-1' id='".$data->id."'><i class='fas fa-trash m-1'></i>".__("delete")."</button>";
-                return $button;
-            })
-            ->rawColumns(['tindakan'])
-            -> make(true);
-        }
+{
+    $goodsouts = GoodsOut::with('item','user','customer')->latest()->get();
+    
+    if($request->ajax()){
+        return DataTables::of($goodsouts)
+        ->addColumn('quantity',function($data){
+            $item = Item::with("unit")->find($data -> item -> id);
+            return $data -> quantity ."/".$item -> unit -> name;
+        })
+        ->addColumn("date_received",function($data){
+            return Carbon::parse($data->date_received)->format('d F Y');
+        })
+        ->addColumn("kode_barang",function($data){
+            return $data -> item -> code;
+        })
+        ->addColumn("customer_name",function($data){
+            return $data -> customer -> name;
+        })
+        ->addColumn("item_name",function($data){
+            return $data -> item -> name;
+        })
+        ->addColumn('tindakan',function($data){
+            $button = "<button class='ubah btn btn-success m-1' id='".$data->id."'><i class='fas fa-pen m-1'></i>".__("edit")."</button>";
+            $button .= "<button class='hapus btn btn-danger m-1' id='".$data->id."'><i class='fas fa-trash m-1'></i>".__("delete")."</button>";
+            return $button;
+        })
+        ->rawColumns(['tindakan'])
+        -> make(true);
     }
+    
+    // Tambahkan return statement untuk kasus non-AJAX request
+    return response()->json([
+        'data' => $goodsouts
+    ]);
+}
 
     public function save(Request $request):JsonResponse
     {

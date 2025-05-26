@@ -23,20 +23,36 @@ class BrandController extends Controller
     }
 
     // return list brand in format json
-    public function list(Request $request): JsonResponse
-    {
+   // return list brand in format json
+public function list(Request $request): JsonResponse
+{
+    try {
         $brands = Brand::latest()->get();
-        if($request -> ajax()){
+        
+        if($request->ajax()){
             return DataTables::of($brands)
-            ->addColumn('tindakan',function($data){
-                $button = "<button class='ubah btn btn-success m-1' id='".$data->id."'><i class='fas fa-pen m-1'></i>".__("edit")."</button>";
-                $button .= "<button class='hapus btn btn-danger m-1' id='".$data->id."'><i class='fas fa-trash m-1'></i>".__("delete")."</button>";
-                return $button;
-            })
-            ->rawColumns(['tindakan'])
-            -> make(true);
+                ->addColumn('tindakan', function($data){
+                    $button = "<button class='ubah btn btn-success m-1' id='".$data->id."'><i class='fas fa-pen m-1'></i>".__("edit")."</button>";
+                    $button .= "<button class='hapus btn btn-danger m-1' id='".$data->id."'><i class='fas fa-trash m-1'></i>".__("delete")."</button>";
+                    return $button;
+                })
+                ->rawColumns(['tindakan'])
+                ->make(true);
         }
+        
+        // Menambahkan return untuk kondisi non-ajax
+        return response()->json([
+            'success' => true,
+            'data' => $brands
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     // save new brand
     public function save(CreateBrandRequest $request): JsonResponse
