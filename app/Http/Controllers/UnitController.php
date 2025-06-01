@@ -30,7 +30,7 @@ class UnitController extends Controller
             ->make(true);
     }
     
-    // Redirect ke view untuk non-ajax request
+   
     return view('units.index', compact('units'));
 }
 

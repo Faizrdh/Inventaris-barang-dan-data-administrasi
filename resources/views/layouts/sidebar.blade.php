@@ -58,6 +58,32 @@
             </li>
           </ul>
         </li>
+
+        <li class="nav-item {{ request()->routeIs('letter.category.*') ? 'menu-open' : '' }}">
+        <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('letter.category.*') ? 'active' : '' }}">
+          <i class="nav-icon fas fa-envelope"></i>
+          <p>
+            {{ __("master of letters") }}
+            <i class="right fas fa-angle-left"></i>
+          </p>
+        </a>
+        <ul class="nav nav-treeview">
+          <li class="nav-item">
+            <a href="{{ route('letter.category.index') }}" class="nav-link text-white {{ request()->routeIs('letter.category.index') ? 'active' : '' }}">
+              <i class="fas fa-angle-right"></i>
+              <p>{{ __("Jenis Surat") }}</p>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ route('surat.index') }}" class="nav-link text-white {{ request()->routeIs('letter.index') ? 'active' : '' }}">
+              <i class="fas fa-angle-right"></i>
+              <p>{{ __("Satuan Surat") }}</p>
+            </a>
+          </li>
+        </ul>
+      </li>
+
+
         <li class="nav-item">
           <a href="{{route('customer')}}" class="nav-link text-white {{ request()->routeIs('customer') ? 'active' : '' }}">
             <i class="nav-icon far fa-user"></i>
@@ -66,6 +92,15 @@
             </p>
           </a>
         </li>
+
+      <li class="nav-item">
+    <a href="{{route('sender_letter.index')}}" class="nav-link text-white {{ request()->routeIs('sender_letter.index') ? 'active' : '' }}">
+        <i class="nav-icon far fa-envelope"></i>
+        <p>
+            {{ __("Pengirim Surat") }}
+        </p>
+    </a>
+</li>
 
         <li class="nav-item">
           <a href="{{route('supplier')}}" class="nav-link text-white {{ request()->routeIs('supplier') ? 'active' : '' }}">
@@ -79,7 +114,7 @@
           <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('transaksi.*') ? 'active' : '' }}">
             <i class="nav-icon fas fa-exchange-alt"></i>
             <p>
-            {{ __("transaction") }}
+            {{ __("Transaksi barang") }}
               <i class="right fas fa-angle-left"></i>
             </p>
           </a>
@@ -87,16 +122,41 @@
             <li class="nav-item">
               <a href="{{route('transaksi.masuk')}}" class="nav-link text-white {{ request()->routeIs('transaksi.masuk') ? 'active' : '' }}">
               <i class="fas fa-angle-right"></i>
-                <p>{{ __("incoming transaction") }}</p>
+                <p>{{ __("Barang Masuk") }}</p>
               </a>
             </li>
             <li class="nav-item">
               <a href="{{route('transaksi.keluar')}}" class="nav-link text-white {{ request()->routeIs('transaksi.keluar') ? 'active' : '' }}">
               <i class="fas fa-angle-right"></i>
-                <p>{{ __("outbound transaction") }}</p>
+                <p>{{ __("Barang Keluar") }}</p>
               </a>
             </li>
           </ul>
+        </li>
+
+
+        <li class="nav-item {{ request()->routeIs('transaksi.*') ? 'menu-open' : '' }}">
+          <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('transaksi.*') ? 'active' : '' }}">
+            <i class="nav-icon fas fa-exchange-alt"></i>
+            <p>
+            {{ __("Transaksi Surat") }}
+              <i class="right fas fa-angle-left"></i>
+            </p>
+          </a>
+         <ul class="nav nav-treeview">
+          <li class="nav-item">
+              <a href="{{route('surat.masuk.index')}}" class="nav-link text-white {{ request()->routeIs('surat.masuk.*') ? 'active' : '' }}">
+                  <i class="fas fa-angle-right"></i>
+                  <p>{{ __("Surat Masuk") }}</p>
+              </a>
+          </li>
+          <li class="nav-item">
+              <a href="{{route('surat.keluar.index')}}" class="nav-link text-white {{ request()->routeIs('surat.keluar.index*') ? 'active' : '' }}">
+                  <i class="fas fa-angle-right"></i>
+                  <p>{{ __("Surat keluar") }}</p>
+              </a>
+          </li>
+      </ul>
         </li>
         
         <!-- Menu Cuti Baru -->
@@ -165,6 +225,33 @@
             </li>
           </ul>
         </li>
+<li class="nav-item {{ request()->routeIs('laporan.*') ? 'menu-open' : '' }}">
+  <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('laporan.*') ? 'active' : '' }}">
+    <i class="nav-icon fas fa-print"></i>
+    <p>
+      {{ __("Laporan surat") }}
+      <i class="right fas fa-angle-left"></i>
+    </p>
+  </a>
+  <ul class="nav nav-treeview">
+    <!-- Laporan Surat Masuk -->
+    <li class="nav-item">
+      <a href="{{route('laporan.surat-masuk')}}" class="nav-link text-white {{ request()->routeIs('laporan.surat-masuk*') ? 'active' : '' }}">
+        <i class="fas fa-angle-right"></i>
+        <p>{{ __("Laporan Surat Masuk") }}</p>
+      </a>
+    </li>
+
+    <li class="nav-item">
+      <a href="{{route('laporan.surat-keluar')}}" class="nav-link text-white {{ request()->routeIs('laporan.surat-keluar*') ? 'active' : '' }}">
+        <i class="fas fa-angle-right"></i>
+        <p>{{ __("Laporan Surat keluar") }}</p>
+      </a>
+    </li>
+  </ul>
+</li>
+        
+
         <li class="nav-header">{{ __("others") }}</li>
         <li class="nav-item {{ request()->routeIs('settings.*') ? 'menu-open' : '' }}">
           <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('settings.*') ? 'active' : '' }}">

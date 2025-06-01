@@ -23,7 +23,14 @@ use App\Http\Controllers\LeaveApprovalController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportFinancialController;
 use App\Http\Controllers\LandingPageController;
-
+use App\Http\Controllers\CategoryLetterController;
+use App\Http\Controllers\LetterController;
+use App\Http\Controllers\ReportLetterInController;
+use App\Http\Controllers\ReportLettersInController;
+use App\Http\Controllers\SenderLetterController;
+use App\Http\Controllers\LettersInController;
+use App\Http\Controllers\LettersOutController;
+use App\Http\Controllers\ReportLettersOutController;
 
 Route::middleware(["localization"])->group(function(){
     // Jadikan LandingPage sebagai halaman utama
@@ -93,6 +100,83 @@ Route::middleware(['auth', "localization"])-> group(function(){
         });
     });
 
+    //Jenis Surat
+   Route::prefix('letter/category')->name('letter.category.')->group(function() {
+    Route::get('/', [CategoryLetterController::class, 'index'])->name('index');
+    Route::get('/list', [CategoryLetterController::class, 'list'])->name('list');
+    Route::post('/save', [CategoryLetterController::class, 'save'])->name('save');
+    Route::post('/detail', [CategoryLetterController::class, 'detail'])->name('detail');
+    Route::put('/update', [CategoryLetterController::class, 'update'])->name('update');
+    Route::delete('/delete', [CategoryLetterController::class, 'delete'])->name('delete');
+});
+
+// Routes untuk Letter Management
+ Route::prefix('surat')->name('surat.')->group(function () {
+        Route::get('/', [LetterController::class, 'index'])->name('index');
+        Route::get('/list', [LetterController::class, 'list'])->name('list');
+        Route::post('/save', [LetterController::class, 'save'])->name('save');
+        Route::post('/detail', [LetterController::class, 'detail'])->name('detail');
+        Route::post('/detail-by-code', [LetterController::class, 'detailByCode'])->name('detail-by-code');
+        Route::put('/update', [LetterController::class, 'update'])->name('update');
+        Route::delete('/delete', [LetterController::class, 'delete'])->name('delete');
+        
+        // File Management Routes - PERBAIKAN: Hapus duplikasi /surat/
+        Route::get('/download-file', [LetterController::class, 'downloadFile'])->name('download-file');
+        Route::get('/view-file', [LetterController::class, 'viewFile'])->name('view-file');
+        Route::delete('/delete-file', [LetterController::class, 'deleteFile'])->name('delete-file');
+    });
+
+    // SenderLetter Routes
+Route::prefix('sender-letter')->group(function () {
+    Route::get('/', [SenderLetterController::class, 'index'])->name('sender_letter.index');
+    Route::get('/list', [SenderLetterController::class, 'list'])->name('sender_letter.list');
+    Route::post('/save', [SenderLetterController::class, 'save'])->name('sender_letter.save');
+    Route::post('/detail', [SenderLetterController::class, 'detail'])->name('sender_letter.detail');
+    Route::put('/update', [SenderLetterController::class, 'update'])->name('sender_letter.update');
+    Route::delete('/delete', [SenderLetterController::class, 'delete'])->name('sender_letter.delete');
+});
+
+  // Routes Surat Masuk (LettersIn)
+       Route::prefix('surat-masuk')->name('surat.masuk.')->group(function () {
+        Route::get('/', [LettersInController::class, 'index'])->name('index');
+        Route::post('/list', [LettersInController::class, 'list'])->name('list');
+        Route::post('/list-letters', [LettersInController::class, 'listLetters'])->name('list.letters');
+        Route::post('/letter-code', [LettersInController::class, 'getLetterByCode'])->name('letter.code');
+        Route::post('/save', [LettersInController::class, 'store'])->name('save');
+        Route::post('/detail', [LettersInController::class, 'show'])->name('detail');
+        Route::put('/update', [LettersInController::class, 'update'])->name('update');
+        Route::delete('/delete', [LettersInController::class, 'destroy'])->name('delete');
+    });
+
+
+ Route::prefix('surat.keluar')->name('surat.keluar.')->group(function () {
+    Route::get('/', [LettersOutController::class, 'index'])->name('index');
+    Route::post('/list', [LettersOutController::class, 'list'])->name('list');
+    Route::post('/list-letters', [LettersOutController::class, 'listLetters'])->name('list.letters');
+    Route::post('/letter-code', [LettersOutController::class, 'getLetterByCode'])->name('letter.code');
+    Route::post('/store', [LettersOutController::class, 'store'])->name('store');
+    Route::put('/update', [LettersOutController::class, 'update'])->name('update');
+    Route::post('/show', [LettersOutController::class, 'show'])->name('show');
+    Route::delete('/destroy', [LettersOutController::class, 'destroy'])->name('destroy');
+});
+
+
+  // Laporan Surat Keluar
+    Route::get('/laporan/surat-keluar', [ReportLettersOutController::class, 'index'])->name('laporan.surat-keluar');
+    Route::post('/laporan/surat-keluar/list', [ReportLettersOutController::class, 'list'])->name('laporan.surat-keluar.list');
+    Route::post('/laporan/surat-keluar/export-excel', [ReportLettersOutController::class, 'exportExcel'])->name('laporan.surat-keluar.export-excel');
+    Route::post('/laporan/surat-keluar/export-pdf', [ReportLettersOutController::class, 'exportPdf'])->name('laporan.surat-keluar.export-pdf');
+});
+
+Route::prefix('report-letter')->group(function () {
+    // Laporan Surat Masuk
+    Route::get('/laporan/surat-masuk', [ReportLettersInController::class, 'index'])->name('laporan.surat-masuk');
+    Route::get('/laporan/surat-masuk/list', [ReportLettersInController::class, 'list'])->name('laporan.surat-masuk.list');
+    Route::post('/laporan/surat-masuk/export-excel', [ReportLettersInController::class, 'exportExcel'])->name('laporan.surat-masuk.export-excel');
+    Route::post('/laporan/surat-masuk/export-pdf', [ReportLettersInController::class, 'exportPdf'])->name('laporan.surat-masuk.export-pdf');
+    
+});
+
 
     // customer (izin untuk staff hanya read)
     Route::controller(CustomerController::class)->prefix('/customer')->group(function(){
@@ -141,7 +225,7 @@ Route::middleware(['admin.check'])->group(function () {
     Route::post('/admin/leave-validation/reject', [App\Http\Controllers\LeaveValidationController::class, 'reject'])->name('leave-validation.reject');
 });
 
- 
+ //pengembalian return
 Route::middleware(['auth'])->group(function () {
     Route::get('/return', [App\Http\Controllers\ReturnController::class, 'index'])->name('return.index');
     Route::post('/return/save', [App\Http\Controllers\ReturnController::class, 'save'])->name('return.save');
@@ -219,5 +303,3 @@ Route::middleware(['auth'])->group(function () {
 
     // logout
     Route::get('/logout',[LoginController::class,'logout'])->name('login.delete');
-
-});
