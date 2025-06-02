@@ -204,15 +204,31 @@ Route::prefix('report-letter')->group(function () {
     });
 
     //route Cuti 
-    // Routes untuk pengajuan cuti
-Route::prefix('admin/cuti')->middleware(['auth'])->group(function () {
-    // Pengajuan cuti
-    Route::get('/leave-application', [LeaveApplicationController::class, 'index'])->name('leave-application'); // Route untuk pengajuan cuti
-    Route::get('/leave-application/list', [LeaveApplicationController::class, 'list'])->name('leave-application.list');
-    Route::post('/leave-application/save', [LeaveApplicationController::class, 'save'])->name('leave-application.save');
-    Route::post('/leave-application/detail', [LeaveApplicationController::class, 'detail'])->name('leave-application.detail');
-    Route::post('/leave-application/update', [LeaveApplicationController::class, 'update'])->name('leave-application.update');
-    Route::post('/leave-application/delete', [LeaveApplicationController::class, 'delete'])->name('leave-application.delete');
+   // Route dengan prefix admin/cuti untuk menyesuaikan URL structure
+Route::middleware(['auth'])->prefix('admin/cuti')->name('leave-application.')->group(function () {
+    // Display the leave application page
+    Route::get('/leave-application', [LeaveApplicationController::class, 'index'])->name('index');
+    
+    // Get list of leave applications for DataTables (AJAX)
+    Route::get('/leave-application/list', [LeaveApplicationController::class, 'list'])->name('list');
+    
+    // Save new leave application
+    Route::post('/leave-application/save', [LeaveApplicationController::class, 'save'])->name('save');
+    
+    // Get leave application details
+    Route::post('/leave-application/detail', [LeaveApplicationController::class, 'detail'])->name('detail');
+    
+    // Update leave application
+    Route::post('/leave-application/update', [LeaveApplicationController::class, 'update'])->name('update');
+    
+    // Delete leave application
+    Route::delete('/leave-application/delete', [LeaveApplicationController::class, 'delete'])->name('delete');
+    
+    // Approve leave application (for managers/admin)
+    Route::post('/leave-application/approve', [LeaveApplicationController::class, 'approve'])->name('approve');
+    
+    // Reject leave application (for managers/admin)
+    Route::post('/leave-application/reject', [LeaveApplicationController::class, 'reject'])->name('reject');
 });
 
 // Validasi cuti (untuk kepala unit)

@@ -203,12 +203,6 @@
         <div>
           <a href="{{ route('login') }}" class="btn login-btn">Login</a>
           <div class="btn-group ml-2">
-            <button type="button" class="btn btn-sm btn-light dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
-              <span class="flag-icon flag-icon-{{ app()->getLocale() }}"></span>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-right" id="lang-dropdown">
-              <!-- Languages will be populated by JavaScript -->
-            </ul>
           </div>
         </div>
       </div>

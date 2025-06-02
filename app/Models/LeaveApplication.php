@@ -11,35 +11,42 @@ class LeaveApplication extends Model
 {
     use HasFactory;
 
-    // Menentukan nama tabel yang benar
-    protected $table = 'cutis';
+    // Using English table name
+    protected $table = 'leave_applications';
     
-    // Menentukan koneksi database yang benar
-    protected $connection = 'db_inventaris';
-
-    // Fillable columns for mass-assignment, disesuaikan dengan kolom di tabel 'cutis'
+    // Fillable columns for mass-assignment
     protected $fillable = [
-        'kode',
-        'nama',
-        'nip',
-        'tanggal_pengajuan',
-        'tanggal_mulai',
-        'tanggal_selesai',
-        'total_hari',
-        'keterangan',
+        'code',
+        'name',
+        'employee_id',
+        'application_date',
+        'leave_type',
+        'start_date',
+        'end_date',
+        'total_days',
+        'description',
         'status',
-        'file_izin', // Sesuaikan dengan nama di tabel cutis (bukan dokumen)
+        'document_path',
+        'user_id',
         'approved_by',
         'approved_at',
     ];
 
     // Convert column data types to appropriate formats
     protected $casts = [
-        'tanggal_pengajuan' => 'date', // Sesuaikan dengan tipe di migrasi (date, bukan datetime)
-        'tanggal_mulai' => 'date',
-        'tanggal_selesai' => 'date',
+        'application_date' => 'date',
+        'start_date' => 'date',
+        'end_date' => 'date',
         'approved_at' => 'datetime',
     ];
+
+    /**
+     * Relation to User model for the user who submitted the application
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     /**
      * Relation to User model for approved leave applications
@@ -52,11 +59,11 @@ class LeaveApplication extends Model
     /**
      * Calculate total days based on start and end dates
      */
-    public function hitungTotalHari()
+    public function calculateTotalDays()
     {
-        if ($this->tanggal_mulai && $this->tanggal_selesai) {
-            $start = new \DateTime($this->tanggal_mulai);
-            $end = new \DateTime($this->tanggal_selesai);
+        if ($this->start_date && $this->end_date) {
+            $start = new \DateTime($this->start_date);
+            $end = new \DateTime($this->end_date);
             $diff = $start->diff($end);
             return $diff->days + 1; // Total days including first day
         }
@@ -70,10 +77,10 @@ class LeaveApplication extends Model
      * @param \Illuminate\Http\UploadedFile|null $file
      * @return string|null
      */
-    public function saveDokumen($file)
+    public function saveDocument($file)
     {
         if ($file) {
-            return $file->store('cuti_files', 'public'); // Store file in 'cuti_files' folder in public storage
+            return $file->store('leave_documents', 'public');
         }
 
         return null;
@@ -84,10 +91,40 @@ class LeaveApplication extends Model
      *
      * @return void
      */
-    public function deleteDokumen()
+    public function deleteDocument()
     {
-        if ($this->file_izin && Storage::disk('public')->exists($this->file_izin)) {
-            Storage::disk('public')->delete($this->file_izin);
+        if ($this->document_path && Storage::disk('public')->exists($this->document_path)) {
+            Storage::disk('public')->delete($this->document_path);
         }
+    }
+
+    /**
+     * Get the status label with proper styling
+     */
+    public function getStatusLabelAttribute()
+    {
+        $statusLabels = [
+            'pending' => '<span class="badge badge-warning">Pending</span>',
+            'approved' => '<span class="badge badge-success">Approved</span>',
+            'rejected' => '<span class="badge badge-danger">Rejected</span>',
+        ];
+
+        return $statusLabels[$this->status] ?? '<span class="badge badge-secondary">Unknown</span>';
+    }
+
+    /**
+     * Scope untuk filter berdasarkan status
+     */
+    public function scopeByStatus($query, $status)
+    {
+        return $query->where('status', $status);
+    }
+
+    /**
+     * Scope untuk filter berdasarkan user
+     */
+    public function scopeByUser($query, $userId)
+    {
+        return $query->where('user_id', $userId);
     }
 }

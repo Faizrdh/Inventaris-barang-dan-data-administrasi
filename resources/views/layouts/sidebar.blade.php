@@ -159,23 +159,23 @@
       </ul>
         </li>
         
-        <!-- Menu Cuti Baru -->
-        <li class="nav-item {{ request()->routeIs('cuti.*') ? 'menu-open' : '' }}">
-          <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('cuti.*') ? 'active' : '' }}">
-            <i class="nav-icon fas fa-envelope"></i>
-            <p>
+        <!-- Menu Cuti -->
+<li class="nav-item {{ request()->routeIs('leave-application.*') ? 'menu-open' : '' }}">
+    <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('leave-application.*') ? 'active' : '' }}">
+        <i class="nav-icon fas fa-calendar-alt"></i>
+        <p>
             {{ __("Cuti") }}
-              <i class="right fas fa-angle-left"></i>
-            </p>
-          </a>
-          <ul class="nav nav-treeview">
-            <!-- Menu Pengajuan Cuti -->
-            <li class="nav-item">
-                <a href="{{ route('leave-application') }}" class="nav-link text-white {{ request()->routeIs('leave-application') ? 'active' : '' }}">
-                    <i class="fas fa-angle-right"></i>
-                    <p>{{ __("Pengajuan Cuti") }}</p>
-                </a>
-            </li>
+            <i class="right fas fa-angle-left"></i>
+        </p>
+    </a>
+    <ul class="nav nav-treeview">
+        <!-- Menu Pengajuan Cuti -->
+        <li class="nav-item">
+            <a href="{{ route('leave-application.index') }}" class="nav-link text-white {{ request()->routeIs('leave-application.index') ? 'active' : '' }}">
+                <i class="fas fa-angle-right nav-icon"></i>
+                <p>{{ __("Pengajuan Cuti") }}</p>
+            </a>
+        </li>
         
             <!-- Menu Validasi Cuti -->
             <li class="nav-item">

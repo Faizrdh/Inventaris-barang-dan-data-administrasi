@@ -7,9 +7,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Yajra\DataTables\DataTables;
 use App\Models\LeaveApplication;
-use App\Http\Requests\CreateLeaveApplicationRequest;
-use App\Http\Requests\UpdateLeaveApplicationRequest;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -17,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 class LeaveApplicationController extends Controller
 {
     /**
-     * Menampilkan halaman leave application.
+     * Display the leave application page.
      *
      * @return \Illuminate\View\View
      */
@@ -27,116 +24,130 @@ class LeaveApplicationController extends Controller
     }
 
     /**
-     * Menampilkan list pengajuan cuti dalam format DataTables.
+     * Display list of leave applications in DataTables format.
      *
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function list(Request $request): JsonResponse
-    {
-        try {
-            // Ambil data leave application terbaru
-            $leaveApplications = LeaveApplication::latest()->get();
+   // PERBAIKAN di LeaveApplicationController.php - method list()
 
-            // Pastikan response diberikan dalam kondisi AJAX
-            if ($request->ajax()) {
-                return DataTables::of($leaveApplications)
-                    ->addColumn('tindakan', function ($data) {
-                        // Membuat tombol aksi untuk DataTables
-                        $button = "<button class='ubah btn btn-success m-1' id='" . $data->id . "'><i class='fas fa-pen m-1'></i> " . __("edit") . "</button>";
-                        $button .= "<button class='hapus btn btn-danger m-1' id='" . $data->id . "'><i class='fas fa-trash m-1'></i> " . __("delete") . "</button>";
-                        $button .= "<button class='detail btn btn-info m-1' id='" . $data->id . "'><i class='fas fa-eye m-1'></i> " . __("detail") . "</button>";
-                        
-                        if ($data->dokumen) {
-                            $button .= "<a href='" . url('storage/' . $data->dokumen) . "' target='_blank' class='btn btn-secondary m-1'><i class='fas fa-file-pdf m-1'></i> " . __("view") . "</a>";
-                        }
-                        return $button;
-                    })
-                    ->addColumn('status_label', function ($data) {
-                        // Menambahkan label status sesuai dengan status pengajuan
-                        if ($data->status == 'pending') {
-                            return "<span class='badge badge-warning'>" . __("Pending") . "</span>";
-                        } elseif ($data->status == 'approved') {
-                            return "<span class='badge badge-success'>" . __("Approved") . "</span>";
-                        } else {
-                            return "<span class='badge badge-danger'>" . __("Rejected") . "</span>";
-                        }
-                    })
-                    ->rawColumns(['tindakan', 'status_label'])
-                    ->make(true);
-            }
+public function list(Request $request): JsonResponse
+{
+    try {
+        // Get latest leave applications
+        $leaveApplications = LeaveApplication::with(['user', 'approver'])->latest();
 
-            // Jika bukan AJAX, tetap harus ada response yang dikembalikan
-            return response()->json([
-                'message' => 'Invalid request. Expected an AJAX request.'
-            ], 400);
-        } catch (\Exception $e) {
-            Log::error('Error in leave application list: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
-            ], 500);
+        // Ensure response is given in AJAX condition
+        if ($request->ajax()) {
+            return DataTables::of($leaveApplications)
+                ->addColumn('actions', function ($data) {
+                    // Create action buttons for DataTables
+                    $button = "<button class='edit btn btn-success btn-sm m-1' data-id='" . $data->id . "'><i class='fas fa-pen'></i> " . __("Edit") . "</button>";
+                    $button .= "<button class='delete btn btn-danger btn-sm m-1' data-id='" . $data->id . "'><i class='fas fa-trash'></i> " . __("Delete") . "</button>";
+                    $button .= "<button class='detail btn btn-info btn-sm m-1' data-id='" . $data->id . "'><i class='fas fa-eye'></i> " . __("Detail") . "</button>";
+                    
+                    if ($data->document_path) {
+                        // PERBAIKAN: Generate URL yang benar untuk document
+                        $documentUrl = asset('storage/' . $data->document_path);
+                        $button .= "<a href='" . $documentUrl . "' target='_blank' class='btn btn-secondary btn-sm m-1'><i class='fas fa-file-pdf'></i> " . __("View Document") . "</a>";
+                    }
+                    return $button;
+                })
+                ->addColumn('status_label', function ($data) {
+                    // Add status label according to application status
+                    if ($data->status == 'pending') {
+                        return "<span class='badge badge-warning'>" . __("Pending") . "</span>";
+                    } elseif ($data->status == 'approved') {
+                        return "<span class='badge badge-success'>" . __("Approved") . "</span>";
+                    } else {
+                        return "<span class='badge badge-danger'>" . __("Rejected") . "</span>";
+                    }
+                })
+                // PERBAIKAN: Format tanggal ke format date saja (YYYY-MM-DD)
+                ->editColumn('application_date', function ($data) {
+                    return $data->application_date ? $data->application_date->format('Y-m-d') : '';
+                })
+                ->editColumn('start_date', function ($data) {
+                    return $data->start_date ? $data->start_date->format('Y-m-d') : '';
+                })
+                ->editColumn('end_date', function ($data) {
+                    return $data->end_date ? $data->end_date->format('Y-m-d') : '';
+                })
+                ->rawColumns(['actions', 'status_label'])
+                ->make(true);
         }
+
+        // If not AJAX, still must return a response
+        return response()->json([
+            'message' => 'Invalid request. Expected an AJAX request.'
+        ], 400);
+    } catch (\Exception $e) {
+        Log::error('Error in leave application list: ' . $e->getMessage());
+        return response()->json([
+            'message' => 'An error occurred: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     /**
-     * Menyimpan pengajuan cuti baru.
+     * Store a new leave application.
      *
-     * @param \App\Http\Requests\CreateLeaveApplicationRequest $request
+     * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function save(Request $request): JsonResponse
     {
         try {
-            // Validasi manual untuk menggantikan CreateLeaveApplicationRequest
+            // Manual validation
             $validated = $request->validate([
-                'kode' => 'required',
-                'nama' => 'required',
-                'nip' => 'required',
-                'tanggal_pengajuan' => 'required|date',
-                'jenis_cuti' => 'required',
-                'tanggal_mulai' => 'required|date',
-                'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
-                'total_hari' => 'required|integer|min:1',
-                'keterangan' => 'required',
-                'dokumen' => 'nullable|file|mimes:pdf|max:5120',
+                'code' => 'required|string|unique:leave_applications,code',
+                'name' => 'required|string|max:255',
+                'employee_id' => 'required|string|max:255',
+                'application_date' => 'required|date',
+                'leave_type' => 'required|string',
+                'start_date' => 'required|date',
+                'end_date' => 'required|date|after_or_equal:start_date',
+                'total_days' => 'required|integer|min:1',
+                'description' => 'required|string',
+                'document' => 'nullable|file|mimes:pdf|max:5120', // 5MB max
             ]);
 
             $leaveApplication = new LeaveApplication();
-            $leaveApplication->kode = $request->kode;
-            $leaveApplication->nama = $request->nama;
-            $leaveApplication->nip = $request->nip;
-            $leaveApplication->tanggal_pengajuan = $request->tanggal_pengajuan;
-            $leaveApplication->jenis_cuti = $request->jenis_cuti;
-            $leaveApplication->tanggal_mulai = $request->tanggal_mulai;
-            $leaveApplication->tanggal_selesai = $request->tanggal_selesai;
-            $leaveApplication->total_hari = $request->total_hari;
-            $leaveApplication->keterangan = $request->keterangan;
+            $leaveApplication->code = $request->code;
+            $leaveApplication->name = $request->name;
+            $leaveApplication->employee_id = $request->employee_id;
+            $leaveApplication->application_date = $request->application_date;
+            $leaveApplication->leave_type = $request->leave_type;
+            $leaveApplication->start_date = $request->start_date;
+            $leaveApplication->end_date = $request->end_date;
+            $leaveApplication->total_days = $request->total_days;
+            $leaveApplication->description = $request->description;
             $leaveApplication->status = 'pending';
-            $leaveApplication->user_id = Auth::id(); // Pastikan user_id tersedia
+            $leaveApplication->user_id = Auth::id();
 
             // Handle file upload
-            if ($request->hasFile('dokumen')) {
-                $path = $request->file('dokumen')->store('cuti_files', 'public');
-                $leaveApplication->dokumen = $path;
+            if ($request->hasFile('document')) {
+                $path = $request->file('document')->store('leave_documents', 'public');
+                $leaveApplication->document_path = $path;
             }
 
             $status = $leaveApplication->save();
 
             if (!$status) {
-                return response()->json(["message" => __("failed to save")])->setStatusCode(400);
+                return response()->json(["message" => __("Failed to save")])->setStatusCode(400);
             }
 
-            return response()->json([ "message" => __("saved successfully") ])->setStatusCode(200);
+            return response()->json(["message" => __("Saved successfully")])->setStatusCode(200);
         } catch (\Exception $e) {
             Log::error('Error in save leave application: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+                'message' => 'An error occurred: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Mengambil detail pengajuan cuti.
+     * Get leave application details.
      *
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -148,92 +159,92 @@ class LeaveApplicationController extends Controller
                 'id' => 'required|integer'
             ]);
 
-            $leaveApplication = LeaveApplication::find($validated['id']);
+            $leaveApplication = LeaveApplication::with(['user', 'approver'])->find($validated['id']);
 
             if (!$leaveApplication) {
-                return response()->json(["message" => __("not found.")], 404);
+                return response()->json(["message" => __("Not found.")], 404);
             }
 
             return response()->json(["data" => $leaveApplication])->setStatusCode(200);
         } catch (\Exception $e) {
             Log::error('Error in get leave application detail: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+                'message' => 'An error occurred: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Mengupdate pengajuan cuti.
+     * Update leave application.
      *
-     * @param \App\Http\Requests\UpdateLeaveApplicationRequest $request
+     * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(Request $request): JsonResponse
     {
         try {
-            // Validasi manual untuk menggantikan UpdateLeaveApplicationRequest
+            // Manual validation
             $validated = $request->validate([
                 'id' => 'required|integer',
-                'nama' => 'required',
-                'nip' => 'required',
-                'tanggal_pengajuan' => 'required|date',
-                'jenis_cuti' => 'required',
-                'tanggal_mulai' => 'required|date',
-                'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
-                'total_hari' => 'required|integer|min:1',
-                'keterangan' => 'required',
-                'dokumen' => 'nullable|file|mimes:pdf|max:5120',
+                'name' => 'required|string|max:255',
+                'employee_id' => 'required|string|max:255',
+                'application_date' => 'required|date',
+                'leave_type' => 'required|string',
+                'start_date' => 'required|date',
+                'end_date' => 'required|date|after_or_equal:start_date',
+                'total_days' => 'required|integer|min:1',
+                'description' => 'required|string',
+                'document' => 'nullable|file|mimes:pdf|max:5120',
             ]);
 
             $leaveApplication = LeaveApplication::find($validated['id']);
 
             if (!$leaveApplication) {
-                return response()->json(["message" => __("not found.")], 404);
+                return response()->json(["message" => __("Not found.")], 404);
             }
 
-            // Cek apakah pengajuan masih bisa diedit (masih pending)
+            // Check if application can still be edited (still pending)
             if ($leaveApplication->status !== 'pending') {
-                return response()->json(["message" => __("cannot edit processed application")])->setStatusCode(400);
+                return response()->json(["message" => __("Cannot edit processed application")])->setStatusCode(400);
             }
 
-            $leaveApplication->nama = $request->nama;
-            $leaveApplication->nip = $request->nip;
-            $leaveApplication->tanggal_pengajuan = $request->tanggal_pengajuan;
-            $leaveApplication->jenis_cuti = $request->jenis_cuti;
-            $leaveApplication->tanggal_mulai = $request->tanggal_mulai;
-            $leaveApplication->tanggal_selesai = $request->tanggal_selesai;
-            $leaveApplication->total_hari = $request->total_hari;
-            $leaveApplication->keterangan = $request->keterangan;
+            $leaveApplication->name = $request->name;
+            $leaveApplication->employee_id = $request->employee_id;
+            $leaveApplication->application_date = $request->application_date;
+            $leaveApplication->leave_type = $request->leave_type;
+            $leaveApplication->start_date = $request->start_date;
+            $leaveApplication->end_date = $request->end_date;
+            $leaveApplication->total_days = $request->total_days;
+            $leaveApplication->description = $request->description;
 
             // Handle file upload
-            if ($request->hasFile('dokumen')) {
+            if ($request->hasFile('document')) {
                 // Delete old file if exists
-                if ($leaveApplication->dokumen) {
-                    Storage::disk('public')->delete($leaveApplication->dokumen);
+                if ($leaveApplication->document_path) {
+                    Storage::disk('public')->delete($leaveApplication->document_path);
                 }
 
-                $path = $request->file('dokumen')->store('cuti_files', 'public');
-                $leaveApplication->dokumen = $path;
+                $path = $request->file('document')->store('leave_documents', 'public');
+                $leaveApplication->document_path = $path;
             }
 
             $status = $leaveApplication->save();
 
             if (!$status) {
-                return response()->json(["message" => __("data failed to change")])->setStatusCode(400);
+                return response()->json(["message" => __("Failed to update")])->setStatusCode(400);
             }
 
-            return response()->json([ "message" => __("data changed successfully") ])->setStatusCode(200);
+            return response()->json(["message" => __("Updated successfully")])->setStatusCode(200);
         } catch (\Exception $e) {
             Log::error('Error in update leave application: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+                'message' => 'An error occurred: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Menghapus pengajuan cuti.
+     * Delete leave application.
      *
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -248,30 +259,104 @@ class LeaveApplicationController extends Controller
             $leaveApplication = LeaveApplication::find($validated['id']);
 
             if (!$leaveApplication) {
-                return response()->json(["message" => __("not found.")], 404);
+                return response()->json(["message" => __("Not found.")], 404);
             }
 
-            // Cek apakah pengajuan masih bisa dihapus (masih pending)
+            // Check if application can still be deleted (still pending)
             if ($leaveApplication->status !== 'pending') {
-                return response()->json(["message" => __("cannot delete processed application")])->setStatusCode(400);
+                return response()->json(["message" => __("Cannot delete processed application")])->setStatusCode(400);
             }
 
             // Delete file if exists
-            if ($leaveApplication->dokumen) {
-                Storage::disk('public')->delete($leaveApplication->dokumen);
+            if ($leaveApplication->document_path) {
+                Storage::disk('public')->delete($leaveApplication->document_path);
             }
 
             $status = $leaveApplication->delete();
 
             if (!$status) {
-                return response()->json(["message" => __("data failed to delete")])->setStatusCode(400);
+                return response()->json(["message" => __("Failed to delete")])->setStatusCode(400);
             }
 
-            return response()->json([ "message" => __("data deleted successfully") ])->setStatusCode(200);
+            return response()->json(["message" => __("Deleted successfully")])->setStatusCode(200);
         } catch (\Exception $e) {
             Log::error('Error in delete leave application: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+                'message' => 'An error occurred: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Approve leave application.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function approve(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'id' => 'required|integer'
+            ]);
+
+            $leaveApplication = LeaveApplication::find($validated['id']);
+
+            if (!$leaveApplication) {
+                return response()->json(["message" => __("Not found.")], 404);
+            }
+
+            if ($leaveApplication->status !== 'pending') {
+                return response()->json(["message" => __("Application already processed")])->setStatusCode(400);
+            }
+
+            $leaveApplication->status = 'approved';
+            $leaveApplication->approved_by = Auth::id();
+            $leaveApplication->approved_at = now();
+            $leaveApplication->save();
+
+            return response()->json(["message" => __("Application approved successfully")])->setStatusCode(200);
+        } catch (\Exception $e) {
+            Log::error('Error in approve leave application: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'An error occurred: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Reject leave application.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function reject(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'id' => 'required|integer'
+            ]);
+
+            $leaveApplication = LeaveApplication::find($validated['id']);
+
+            if (!$leaveApplication) {
+                return response()->json(["message" => __("Not found.")], 404);
+            }
+
+            if ($leaveApplication->status !== 'pending') {
+                return response()->json(["message" => __("Application already processed")])->setStatusCode(400);
+            }
+
+            $leaveApplication->status = 'rejected';
+            $leaveApplication->approved_by = Auth::id();
+            $leaveApplication->approved_at = now();
+            $leaveApplication->save();
+
+            return response()->json(["message" => __("Application rejected successfully")])->setStatusCode(200);
+        } catch (\Exception $e) {
+            Log::error('Error in reject leave application: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'An error occurred: ' . $e->getMessage()
             ], 500);
         }
     }
