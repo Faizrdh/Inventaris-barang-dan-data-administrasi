@@ -5,33 +5,47 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
+use Yajra\DataTables\DataTables;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use App\Models\GoodsIn;
 use App\Models\Item;
-use Yajra\DataTables\DataTables;
-use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class ReportGoodsInController extends Controller
 {
     public function index(): View
     {
+        // Cek role admin seperti pada EmployeeController
+        if(Auth::user()->role->name != 'admin' && Auth::user()->role_id !== 1){
+            abort(403, 'Akses tidak diizinkan untuk halaman ini.');
+        }
+        
         return view('admin.master.laporan.masuk');
     }
 
     public function list(Request $request): JsonResponse
-{
-    try {
-        if($request->ajax()) {
-            try {
-                if(empty($request->start_date) && empty($request->end_date)) {
-                    $goodsins = GoodsIn::with('item', 'user', 'supplier');
-                } else {
-                    $goodsins = GoodsIn::with('item', 'user', 'supplier')
-                                ->whereBetween('date_received', [$request->start_date, $request->end_date]);
-                }
-                
-                $goodsins = $goodsins->latest()->get();
-                
+    {
+        try {
+            // Cek role admin seperti pada EmployeeController  
+            if(Auth::user()->role->name != 'admin' && Auth::user()->role_id !== 1){
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access'
+                ], 403);
+            }
+
+            // Filter berdasarkan tanggal seperti code original
+            if(empty($request->start_date) && empty($request->end_date)) {
+                $goodsins = GoodsIn::with('item', 'user', 'supplier');
+            } else {
+                $goodsins = GoodsIn::with('item', 'user', 'supplier')
+                    ->whereBetween('date_received', [$request->start_date, $request->end_date]);
+            }
+
+            $goodsins = $goodsins->latest()->get();
+
+            if($request->ajax()){
                 return DataTables::of($goodsins)
                     ->addColumn('quantity', function($data) {
                         try {
@@ -73,24 +87,20 @@ class ReportGoodsInController extends Controller
                         }
                     })
                     ->make(true);
-            } catch (\Exception $e) {
-                Log::error('Error saat memproses data goods: ' . $e->getMessage());
-                return response()->json([
-                    'error' => true,
-                    'message' => 'Terjadi kesalahan saat memproses data',
-                    'details' => config('app.debug') ? $e->getMessage() : null
-                ], 500);
             }
+
+            return response()->json([
+                'success' => true,
+                'data' => $goodsins
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error saat memproses data goods: ' . $e->getMessage());
+            return response()->json([
+                'error' => true,
+                'message' => 'Terjadi kesalahan saat memproses data',
+                'details' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
         }
-        
-        return response()->json(['message' => 'Request harus melalui AJAX'], 400);
-    } catch (\Exception $e) {
-        Log::error('Error pada controller list: ' . $e->getMessage());
-        return response()->json([
-            'error' => true,
-            'message' => 'Terjadi kesalahan pada server',
-            'details' => config('app.debug') ? $e->getMessage() : null
-        ], 500);
     }
-}
 }

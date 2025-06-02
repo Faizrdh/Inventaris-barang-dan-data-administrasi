@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Auth;
 use App\Models\LettersIn;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\Log;
@@ -14,12 +15,25 @@ class ReportLettersInController extends Controller
 {
     public function index(): View
     {
+        // Cek role admin seperti pada EmployeeController
+        if(Auth::user()->role->name != 'admin' && Auth::user()->role_id !== 1){
+            abort(403, 'Akses tidak diizinkan untuk halaman ini.');
+        }
+        
         return view('admin.master.laporansurat.surat-masuk');
     }
 
     public function list(Request $request): JsonResponse
     {
         try {
+            // Cek role admin seperti pada EmployeeController  
+            if(Auth::user()->role->name != 'admin' && Auth::user()->role_id !== 1){
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access'
+                ], 403);
+            }
+
             if($request->ajax()) {
                 try {
                     if(empty($request->start_date) && empty($request->end_date)) {
