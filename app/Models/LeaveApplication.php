@@ -30,6 +30,7 @@ class LeaveApplication extends Model
         'user_id',
         'approved_by',
         'approved_at',
+        'catatan_validator', //validation cuti
     ];
 
     // Convert column data types to appropriate formats
@@ -39,18 +40,11 @@ class LeaveApplication extends Model
         'end_date' => 'date',
         'approved_at' => 'datetime',
     ];
-
-    /**
-     * Relation to User model for the user who submitted the application
-     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    /**
-     * Relation to User model for approved leave applications
-     */
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
@@ -107,6 +101,7 @@ class LeaveApplication extends Model
             'pending' => '<span class="badge badge-warning">Pending</span>',
             'approved' => '<span class="badge badge-success">Approved</span>',
             'rejected' => '<span class="badge badge-danger">Rejected</span>',
+            'processed' => '<span class="badge badge-info">Processed</span>', // TAMBAHAN: Status processed
         ];
 
         return $statusLabels[$this->status] ?? '<span class="badge badge-secondary">Unknown</span>';
@@ -126,5 +121,21 @@ class LeaveApplication extends Model
     public function scopeByUser($query, $userId)
     {
         return $query->where('user_id', $userId);
+    }
+
+    /**
+     * Scope untuk filter yang perlu validasi admin
+     */
+    public function scopePendingValidation($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    /**
+     * Scope untuk filter yang sudah divalidasi
+     */
+    public function scopeValidated($query)
+    {
+        return $query->whereIn('status', ['approved', 'rejected', 'processed']);
     }
 }

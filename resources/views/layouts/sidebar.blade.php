@@ -158,10 +158,9 @@
           </li>
       </ul>
         </li>
-        
-        <!-- Menu Cuti -->
-<li class="nav-item {{ request()->routeIs('leave-application.*') ? 'menu-open' : '' }}">
-    <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('leave-application.*') ? 'active' : '' }}">
+      
+       <li class="nav-item {{ request()->routeIs('leave-application.*') || request()->routeIs('leave-validation.*') ? 'menu-open' : '' }}">
+    <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('leave-application.*') || request()->routeIs('leave-validation.*') ? 'active' : '' }}">
         <i class="nav-icon fas fa-calendar-alt"></i>
         <p>
             {{ __("Cuti") }}
@@ -169,7 +168,7 @@
         </p>
     </a>
     <ul class="nav nav-treeview">
-        <!-- Menu Pengajuan Cuti -->
+        <!-- Menu Pengajuan Cuti-->
         <li class="nav-item">
             <a href="{{ route('leave-application.index') }}" class="nav-link text-white {{ request()->routeIs('leave-application.index') ? 'active' : '' }}">
                 <i class="fas fa-angle-right nav-icon"></i>
@@ -177,15 +176,17 @@
             </a>
         </li>
         
-            <!-- Menu Validasi Cuti -->
-            <li class="nav-item">
-                <a href="{{ route('leave-validation') }}" class="nav-link text-white {{ request()->routeIs('leave-validation') ? 'active' : '' }}">
-                    <i class="fas fa-angle-right"></i>
-                    <p>{{ __("Validasi Pengajuan Cuti") }}</p>
-                </a>
-            </li>
-        </ul>
+        <!-- Menu Validasi Cuti - Hanya Admin yang bisa akses -->
+        @if(Auth::check() && (Auth::user()->role->name == 'admin' || Auth::user()->role_id === 1))
+        <li class="nav-item">
+            <a href="{{ route('leave-validation.index') }}" class="nav-link text-white {{ request()->routeIs('leave-validation.*') ? 'active' : '' }}">
+                <i class="fas fa-angle-right nav-icon"></i>
+                <p>{{ __("Validasi Pengajuan Cuti") }}</p>
+            </a>
         </li>
+        @endif
+    </ul>
+</li>
 
         <li class="nav-item">
           <a href="{{route('return.index')}}" class="nav-link text-white {{ request()->routeIs('return.*') ? 'active' : '' }}">

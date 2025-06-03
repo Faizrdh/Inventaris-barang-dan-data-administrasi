@@ -24,6 +24,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportFinancialController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\CategoryLetterController;
+use App\Http\Controllers\LeaveValidationController;
 use App\Http\Controllers\LetterController;
 use App\Http\Controllers\ReportLetterInController;
 use App\Http\Controllers\ReportLettersInController;
@@ -231,14 +232,16 @@ Route::middleware(['auth'])->prefix('admin/cuti')->name('leave-application.')->g
     Route::post('/leave-application/reject', [LeaveApplicationController::class, 'reject'])->name('reject');
 });
 
-// Validasi cuti (untuk kepala unit)
+
 // Rute validasi cuti (hanya bisa diakses oleh administrator)
-Route::middleware(['admin.check'])->group(function () {
-    Route::get('/admin/leave-validation', [App\Http\Controllers\LeaveValidationController::class, 'index'])->name('leave-validation');
-    Route::post('/admin/leave-validation/list', [App\Http\Controllers\LeaveValidationController::class, 'list'])->name('leave-validation.list');
-    Route::post('/admin/leave-validation/detail', [App\Http\Controllers\LeaveValidationController::class, 'detail'])->name('leave-validation.detail');
-    Route::post('/admin/leave-validation/approve', [App\Http\Controllers\LeaveValidationController::class, 'approve'])->name('leave-validation.approve');
-    Route::post('/admin/leave-validation/reject', [App\Http\Controllers\LeaveValidationController::class, 'reject'])->name('leave-validation.reject');
+Route::middleware(['auth'])->group(function () {
+    // Leave Validation Routes (Admin Only)
+    Route::get('/admin/leave-validation', [LeaveValidationController::class, 'index'])->name('leave-validation.index');
+    Route::get('/admin/leave-validation/list', [LeaveValidationController::class, 'list'])->name('leave-validation.list');
+    Route::post('/admin/leave-validation/detail', [LeaveValidationController::class, 'detail'])->name('leave-validation.detail');
+    Route::post('/admin/leave-validation/approve', [LeaveValidationController::class, 'approve'])->name('leave-validation.approve');
+    Route::post('/admin/leave-validation/reject', [LeaveValidationController::class, 'reject'])->name('leave-validation.reject');
+    Route::post('/admin/leave-validation/process', [LeaveValidationController::class, 'process'])->name('leave-validation.process');
 });
 
  //pengembalian return
