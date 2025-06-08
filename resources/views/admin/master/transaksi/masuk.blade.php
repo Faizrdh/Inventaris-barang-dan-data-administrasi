@@ -35,8 +35,8 @@
                                             <th class="border-bottom-0">{{__('type')}}</th>
                                             <th class="border-bottom-0">{{__('unit')}}</th>
                                             <th class="border-bottom-0">{{__('brand')}}</th>
-                                            <th class="border-bottom-0">{{__('first stock')}}</th>
-                                            <th class="border-bottom-0">{{__('price')}}</th>
+                                            <th class="border-bottom-0">{{__('current stock')}}</th>
+                                            <!-- HAPUS kolom price dari sini -->
                                             <th class="border-bottom-0" width="1%">{{__('action')}}</th>
                                         </tr>
                                     </thead>
@@ -47,8 +47,6 @@
                     </div>
                 </div>
             </div>
-
-
 
                 <!-- Modal -->
                 <div class="modal fade" id="TambahData" tabindex="-1" aria-labelledby="TambahDataModalLabel" aria-hidden="true">
@@ -164,7 +162,12 @@
             lengthChange: true,
             processing:true,
             serverSide:true,
-            ajax:`{{route('barang.list')}}`,
+            ajax:{
+                url: `{{route('barang.list')}}`,
+                data: {
+                    for_modal: true // Parameter untuk membedakan request dari modal
+                }
+            },
             columns:[
                 {
                     "data":null,"sortable":false,
@@ -194,27 +197,17 @@
                     name:'brand_name'
                 },
                 {
-                    data:'quantity',
-                    name:'quantity'
+                    data:'quantity_formatted', // Ubah dari 'quantity' ke 'quantity_formatted'
+                    name:'quantity_formatted'
                 },
-                {
-                    data:'price',
-                    name:'price'
-                },
+                // HAPUS kolom price dari sini
                 {
                     data:'tindakan',
-                    render:function(data){
-                        const pattern = /id='(\d+)'/;
-                        const matches = data.match(pattern);
-                        return `<button class='pilih-data-barang btn btn-success' data-id='${matches[1]}'>Pilih</button>`;
-                    }
+                    name:'tindakan'
                 }
             ]
         }).buttons().container();
     }
-
-
-
 
     $(document).ready(function(){
         load();
@@ -250,20 +243,22 @@
             url:`{{route('barang.code')}}`,
             type:'post',
             data:{
-                code:kode_barang
+                code:kode_barang,
+                "_token":"{{csrf_token()}}"
             },
             success:function({data}){
                 $("input[name='id_barang']").val(data.id);
                 $("input[name='nama_barang']").val(data.name);
                 $("input[name='satuan_barang']").val(data.unit_name);
                 $("input[name='jenis_barang']").val(data.category_name);
+            },
+            error:function(xhr){
+                console.log(xhr.responseJSON);
+                alert('Item tidak ditemukan');
             }
         });
 
     }
-
-
-
 
     function simpan(){
         const item_id =  $("input[name='id_barang']").val();
@@ -280,6 +275,8 @@
         Form.append('quantity', quantity );
         Form.append('supplier_id', supplier_id );
         Form.append('invoice_number', invoice_number );
+        Form.append('_token', '{{csrf_token()}}');
+        
         $.ajax({
             url:`{{route('transaksi.masuk.save')}}`,
             type:"post",
@@ -297,20 +294,28 @@
                     });
                     $('#kembali').click();
                     $("input[name='id_barang']").val(null);
-                    $("select[name='supplier'").val(null);
+                    $("select[name='supplier'").val("-- {{__('choose a supplier')}} --");
                     $("input[name='nama_barang']").val(null);
                     $("input[name='kode_barang']").val(null);
-                    $("select[name='jenis_barang']").val(null);
-                    $("select[name='satuan_barang']").val(null);
-                    $("input[name='jumlah']").val(0);
+                    $("input[name='jenis_barang']").val(null);
+                    $("input[name='satuan_barang']").val(null);
+                    $("input[name='jumlah']").val(null);
                     $('#data-tabel').DataTable().ajax.reload();
                 },
                 error:function(err){
-                    console.log(err);
+                    console.log(err.responseJSON);
+                    if(err.responseJSON && err.responseJSON.errors){
+                        let errorMessage = '';
+                        Object.keys(err.responseJSON.errors).forEach(function(key) {
+                            errorMessage += err.responseJSON.errors[key][0] + '\n';
+                        });
+                        alert(errorMessage);
+                    } else {
+                        alert('Terjadi kesalahan saat menyimpan data');
+                    }
             },
         })
     }
-
 
     function ubah(){
         const id =  $("input[name='id']").val();
@@ -320,10 +325,20 @@
         const supplier_id = $("select[name='supplier'").val();
         const invoice_number = $("input[name='kode'").val();
         const quantity = $("input[name='jumlah'").val();
+        
         $.ajax({
             url:`{{route('transaksi.masuk.update')}}`,
             type:"put",
-            data:{id,item_id,user_id,date_received,supplier_id,invoice_number,quantity},
+            data:{
+                id:id,
+                item_id:item_id,
+                user_id:user_id,
+                date_received:date_received,
+                supplier_id:supplier_id,
+                invoice_number:invoice_number,
+                quantity:quantity,
+                "_token":"{{csrf_token()}}"
+            },
             success:function(res){
                     Swal.fire({
                         position: "center",
@@ -338,13 +353,22 @@
                     $("select[name='supplier'").val("-- {{__('choose a supplier')}} --");
                     $("input[name='nama_barang']").val(null);
                     $("input[name='kode_barang']").val(null);
-                    $("select[name='jenis_barang']").val(null);
-                    $("select[name='satuan_barang']").val(null);
-                    $("input[name='jumlah']").val(0);
+                    $("input[name='jenis_barang']").val(null);
+                    $("input[name='satuan_barang']").val(null);
+                    $("input[name='jumlah']").val(null);
                     $('#data-tabel').DataTable().ajax.reload();
                 },
                 error:function(err){
-                    console.log(err);
+                    console.log(err.responseJSON);
+                    if(err.responseJSON && err.responseJSON.errors){
+                        let errorMessage = '';
+                        Object.keys(err.responseJSON.errors).forEach(function(key) {
+                            errorMessage += err.responseJSON.errors[key][0] + '\n';
+                        });
+                        alert(errorMessage);
+                    } else {
+                        alert('Terjadi kesalahan saat mengupdate data');
+                    }
             },
         })
     }
@@ -363,7 +387,7 @@
                     }
                 },
                {
-                data:"date_received",
+                data:"date_received_formatted", // Gunakan formatted date
                 name:"date_received"
                },
                {
@@ -381,7 +405,7 @@
                 name:"item_name"
                },
                {
-                data:"quantity",
+                data:"quantity_formatted", // Gunakan formatted quantity
                 name:"quantity"
                },
                {
@@ -390,18 +414,21 @@
                }
             ]
         });
+        
         $("#barang").on("click",function(){
             $('#modal-barang').modal('show');
             $('#TambahData').modal('hide');
         });
+        
         $("#close-modal-barang").on("click",function(){
             $('#modal-barang').modal('hide');
             $('#TambahData').modal('show');
         });
+        
         $("#cari-barang").on("click",detail);
 
         $('#simpan').on('click',function(){
-            if($(this).text() === "{__('update')}"){
+            if($(this).text() === "{{__('update')}}"){
                 ubah();
             }else{
                 simpan();
@@ -422,11 +449,7 @@
             $("input[name='jumlah']").val(null);
             $('#simpan').text("{{__('save')}}");
         });
-
-
     });
-
-
 
     $(document).on("click",".ubah",function(){
         $("#modal-button").click();
@@ -437,11 +460,12 @@
             type:"post",
             data:{
                 id:id,
+                "_token":"{{csrf_token()}}"
             },
             success:function({data}){
                 $("input[name='id']").val(data.id);
                 $("input[name='kode']").val(data.invoice_number);
-                $("input[name='id_barang']").val(data.id_barang);
+                $("input[name='id_barang']").val(data.item_id);
                 $("select[name='supplier'").val(data.supplier_id);
                 $("input[name='nama_barang']").val(data.nama_barang);
                 $("input[name='tanggal_masuk']").val(data.date_received);
@@ -451,7 +475,6 @@
                 $("input[name='jumlah']").val(data.quantity);
             }
         });
-
     });
 
     $(document).on("click",".hapus",function(){
@@ -493,10 +516,7 @@
                 });
             }
         });
-
-
     });
-
 
 </script>
 @endsection

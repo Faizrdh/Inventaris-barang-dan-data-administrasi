@@ -120,7 +120,7 @@
           </a>
           <ul class="nav nav-treeview">
             <li class="nav-item">
-              <a href="{{route('transaksi.masuk')}}" class="nav-link text-white {{ request()->routeIs('transaksi.masuk') ? 'active' : '' }}">
+             <a href="{{route('transaksi.masuk.index')}}" class="nav-link text-white {{ request()->routeIs('transaksi.masuk*') ? 'active' : '' }}">
               <i class="fas fa-angle-right"></i>
                 <p>{{ __("Barang Masuk") }}</p>
               </a>

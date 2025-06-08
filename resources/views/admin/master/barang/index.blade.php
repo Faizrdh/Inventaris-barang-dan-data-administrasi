@@ -14,7 +14,6 @@
                     </div>
                 </div>
 
-
                 <!-- Modal -->
                 <div class="modal fade" id="TambahData" tabindex="-1" aria-labelledby="TambahDataModalLabel" aria-hidden="true">
                     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -64,13 +63,11 @@
                                             @endforeach
                                         </select>
                                     </div>
-                                    <div class="form-group item-count" id="item-count">
-                                        <label for="harga" class="form-label">{{ __("initial amount") }} <span class="text-danger">*</span></label>
-                                        <input type="number" value="0" name="jumlah" class="form-control">
-                                    </div>
+                                    <!-- DIUBAH: Tampilkan initial amount untuk add dan edit -->
                                     <div class="form-group">
-                                        <label for="harga" class="form-label">{{ __("price of goods") }} <span class="text-danger">*</span></label>
-                                        <input type="text"  id="harga" name="harga" class="form-control" placeholder="RP. 0">
+                                        <label for="jumlah" class="form-label">{{ __("initial amount") }} <span class="text-danger">*</span></label>
+                                        <input type="number" value="0" name="jumlah" class="form-control" min="0">
+                                        <small class="form-text text-muted">{{ __("Enter initial stock quantity") }}</small>
                                     </div>
                                 </div>
                                 <div class="col-md-5">
@@ -102,8 +99,8 @@
                                     <th class="border-bottom-0">{{ __("type") }}</th>
                                     <th class="border-bottom-0">{{ __("unit") }}</th>
                                     <th class="border-bottom-0">{{ __("brand") }}</th>
-                                    <th class="border-bottom-0">{{ __("initial stock") }}</th>
-                                    <th class="border-bottom-0">{{ __("price") }}</th>
+                                    <th class="border-bottom-0">{{ __("stock") }}</th>
+                                    <!-- DIHAPUS: Kolom price -->
                                     @if(Auth::user()->role->name != 'staff')
                                     <th class="border-bottom-0" width="1%">{{ __("action") }}</th>
                                     @endif
@@ -123,30 +120,6 @@
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         }
     });
-
-    function harga(){
-        this.value = formatIDR(this.value.replace(/[^0-9.]/g, ''));
-    }
-
-
-    function formatIDR(angka) {
-    // Ubah angka menjadi string dan hapus simbol yang tidak diperlukan
-    var strAngka = angka.toString().replace(/[^0-9]/g, '');
-
-    // Jika tidak ada angka yang tersisa, kembalikan string kosong
-    if (!strAngka) return '';
-
-    // Pisahkan angka menjadi bagian yang sesuai dengan ribuan
-    var parts = strAngka.split('.');
-    var intPart = parts[0];
-    var decPart = parts.length > 1 ? '.' + parts[1] : '';
-
-    // Tambahkan pemisah ribuan
-    intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-
-    // Tambahkan simbol IDR
-    return 'RP.' + intPart + decPart;
-    }
 
     function isi(){
         $('#data-tabel').DataTable({
@@ -183,13 +156,10 @@
                     name:'brand_name'
                 },
                 {
-                    data:'quantity',
-                    name:'quantity'
+                    data:'quantity_formatted',
+                    name:'quantity_formatted'
                 },
-                {
-                    data:'price',
-                    name:'price'
-                },
+                // DIHAPUS: Kolom price
                 @if(Auth::user()->role->name != 'staff')
                 {
                     data:'tindakan',
@@ -207,8 +177,39 @@
         const category_id = $("select[name='jenisbarang']").val();
         const unit_id = $("select[name='satuan']").val();
         const brand_id = $("select[name='merk']").val();
-        const price = $("input[name='harga']").val();
-        // return console.log({name,code,category_id,unit_id,brand_id,price,quantity});
+        const quantity = $("input[name='jumlah']").val();
+
+        // Validasi input
+        if(name.length == 0){
+            return Swal.fire({
+                position: "center",
+                icon: "warning",
+                title: "Nama tidak boleh kosong!",
+                showConfirmButton: false,
+                timer: 1500
+            });
+        }
+
+        if(!category_id || !unit_id || !brand_id){
+            return Swal.fire({
+                position: "center",
+                icon: "warning",
+                title: "Mohon lengkapi semua field yang wajib diisi!",
+                showConfirmButton: false,
+                timer: 1500
+            });
+        }
+
+        if(quantity < 0){
+            return Swal.fire({
+                position: "center",
+                icon: "warning",
+                title: "Jumlah stok tidak boleh minus!",
+                showConfirmButton: false,
+                timer: 1500
+            });
+        }
+
         const Form = new FormData();
         Form.append('image', image[0]);
         Form.append('code', code);
@@ -216,58 +217,56 @@
         Form.append('category_id', category_id);
         Form.append('unit_id', unit_id);
         Form.append('brand_id', brand_id);
-        Form.append('price', price);
-        if(name.length == 0){
-            return Swal.fire({
-                position: "center",
-                icon: "warning",
-                title: "nama tidak boleh kosong !",
-                showConfirmButton: false,
-                imer: 1500
-            });
-        }
-        if(price.length == 0){
-            return Swal.fire({
-                position: "center",
-                icon: "warning",
-                title: "harga tidak boleh kosong !",
-                showConfirmButton: false,
-                imer: 1500
-            });
-        }
+        Form.append('quantity', quantity);
+        Form.append('_token', '{{csrf_token()}}');
+
         $.ajax({
-                url:`{{route('barang.save')}}`,
-                type:"post",
-                processData: false,
-                contentType: false,
-                dataType: 'json',
-                data:Form,
-                success:function(res){
+            url:`{{route('barang.save')}}`,
+            type:"post",
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            data:Form,
+            success:function(res){
+                Swal.fire({
+                    position: "center",
+                    icon: "success",
+                    title: res.message,
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+                $('#kembali').click();
+                resetForm();
+                $('#data-tabel').DataTable().ajax.reload();
+            },
+            statusCode:{
+                422: function(res) {
+                    const {errors} = res.responseJSON;
+                    let errorText = '';
+                    Object.keys(errors).forEach(key => {
+                        errorText += errors[key][0] + '\n';
+                    });
                     Swal.fire({
                         position: "center",
-                        icon: "success",
-                        title: res.message,
-                        showConfirmButton: false,
-                        timer: 1500
+                        icon: "warning",
+                        title: "Validation Error",
+                        text: errorText,
+                        showConfirmButton: true
                     });
-                    $('#kembali').click();
-                    $("input[name='nama']").val(null);
-                    $("input[name='kode']").val(null);
-                    $("#GetFile")[0].files=null;
-                    $("select[name='jenisbarang']").val(null);
-                    $("select[name='satuan']").val(null);
-                    $("select[name='merk']").val(null);
-                    $("input[name='jumlah']").val(0);
-                    $("input[name='harga']").val(null);
-                    $('#data-tabel').DataTable().ajax.reload();
-                },
-                error:function(err){
-                    console.log(err);
+                }
             },
-
+            error:function(err){
+                console.log(err);
+                Swal.fire({
+                    position: "center",
+                    icon: "error",
+                    title: "Terjadi kesalahan!",
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            }
         });
     }
-
 
     function ubah(){
         const name = $("input[name='nama']").val();
@@ -276,9 +275,39 @@
         const category_id = $("select[name='jenisbarang']").val();
         const unit_id = $("select[name='satuan']").val();
         const brand_id = $("select[name='merk']").val();
-        const price = $("input[name='harga']").val();
         const quantity = $("input[name='jumlah']").val();
-        // return console.log({name,code,category_id,unit_id,brand_id,price,quantity});
+
+        // Validasi input
+        if(name.length == 0){
+            return Swal.fire({
+                position: "center",
+                icon: "warning",
+                title: "Nama tidak boleh kosong!",
+                showConfirmButton: false,
+                timer: 1500
+            });
+        }
+
+        if(!category_id || !unit_id || !brand_id){
+            return Swal.fire({
+                position: "center",
+                icon: "warning",
+                title: "Mohon lengkapi semua field yang wajib diisi!",
+                showConfirmButton: false,
+                timer: 1500
+            });
+        }
+
+        if(quantity < 0){
+            return Swal.fire({
+                position: "center",
+                icon: "warning",
+                title: "Jumlah stok tidak boleh minus!",
+                showConfirmButton: false,
+                timer: 1500
+            });
+        }
+
         const Form = new FormData();
         Form.append('id', $("input[name='id']").val());
         Form.append('image', image[0]);
@@ -287,49 +316,92 @@
         Form.append('category_id', category_id);
         Form.append('unit_id', unit_id);
         Form.append('brand_id', brand_id);
-        Form.append('quantity',quantity);
-        Form.append('price', price);
+        Form.append('quantity', quantity);
+        Form.append('_token', '{{csrf_token()}}');
+        Form.append('_method', 'PUT');
+
         $.ajax({
-                url:`{{route('barang.update')}}`,
-                type:"post",
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                data:Form,
-                success:function(res){
+            url:`{{route('barang.update')}}`,
+            type:"post",
+            contentType: false,
+            processData: false,
+            dataType: 'json',
+            data:Form,
+            success:function(res){
+                Swal.fire({
+                    position: "center",
+                    icon: "success",
+                    title: res.message,
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+                $('#kembali').click();
+                resetForm();
+                $('#data-tabel').DataTable().ajax.reload();
+            },
+            statusCode:{
+                422: function(res) {
+                    const {errors} = res.responseJSON;
+                    let errorText = '';
+                    Object.keys(errors).forEach(key => {
+                        errorText += errors[key][0] + '\n';
+                    });
                     Swal.fire({
                         position: "center",
-                        icon: "success",
-                        title: res.message,
-                        showConfirmButton: false,
-                        timer: 1500
+                        icon: "warning",
+                        title: "Validation Error",
+                        text: errorText,
+                        showConfirmButton: true
                     });
-                    $('#kembali').click();
-                    $("input[name='id']").val(null);
-                    $("input[name='nama']").val(null);
-                    $("input[name='kode']").val(null);
-                    $("#GetFile").val(null);
-                    $("select[name='jenisbarang']").val(null);
-                    $("select[name='satuan']").val(null);
-                    $("select[name='merk']").val(null);
-                    $("input[name='jumlah']").val(0);
-                    $("input[name='harga']").val(null);
-                    $('#data-tabel').DataTable().ajax.reload();
-                },
-                error:function(err){
-                    console.log(err);
+                }
             },
-
-
+            error:function(err){
+                console.log(err);
+                Swal.fire({
+                    position: "center",
+                    icon: "error",
+                    title: "Terjadi kesalahan!",
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            }
         });
     }
 
+    function resetForm() {
+        $("input[name='id']").val(null);
+        $("input[name='nama']").val(null);
+        $("input[name='kode']").val(null);
+        $("#GetFile").val(null);
+        $("#outputImg").attr('src', '{{asset("default.png")}}');
+        $("select[name='jenisbarang']").val('');
+        $("select[name='satuan']").val('');
+        $("select[name='merk']").val('');
+        $("input[name='jumlah']").val(0);
+        $("#simpan").text("{{ __('save') }}");
+    }
+
+    // Preview image upload
+    function readURL(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                $('#outputImg').attr('src', e.target.result);
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
     $(document).ready(function(){
-        $("#harga").on("input",harga);
         isi();
 
+        // Image preview
+        $("#GetFile").change(function() {
+            readURL(this);
+        });
+
         $('#simpan').on('click',function(){
-            if($(this).text() === 'Simpan Perubahan'){
+            if($(this).text() === '{{ __("save changes") }}'){
                 ubah();
             }else{
                 simpan();
@@ -337,31 +409,18 @@
         });
 
         $("#modal-button").on("click",function(){
-            $("#item-count").hide();
-            $("input[name='nama']").val(null);
-            $("input[name='id']").val(null);
-            $("input[name='kode']").val(null);
-            $("#GetFile").val(null);
-            $("select[name='jenisbarang']").val(null);
-            $("select[name='satuan']").val(null);
-            $("select[name='merk']").val(null);
-            $("input[name='jumlah']").val(0);
-            $("input[name='harga']").val(null);
-            $("#simpan").text("Simpan");
+            resetForm();
+            // Generate kode barang baru
             id = new Date().getTime();
             $("input[name='kode']").val("BRG-"+id);
         });
-
-
     });
-
-
 
     $(document).on("click",".ubah",function(){
         let id = $(this).attr('id');
         $("#modal-button").click();
-        $("#item-count").show();
-        $("#simpan").text("Simpan Perubahan");
+        $("#simpan").text("{{ __('save changes') }}");
+        
         $.ajax({
             url:"{{route('barang.detail')}}",
             type:"post",
@@ -377,11 +436,23 @@
                 $("select[name='satuan']").val(data.unit_id);
                 $("select[name='merk']").val(data.brand_id);
                 $("input[name='jumlah']").val(data.quantity);
-                $("input[name='harga']").val(data.price);
+                
+                // Preview image jika ada
+                if(data.image) {
+                    $("#outputImg").attr('src', '{{asset("storage/barang/")}}/' + data.image);
+                }
+            },
+            error:function(err){
+                console.log(err);
+                Swal.fire({
+                    position: "center",
+                    icon: "error",
+                    title: "Gagal mengambil data!",
+                    showConfirmButton: false,
+                    timer: 1500
+                });
             }
         });
-
-
     });
 
     $(document).on("click",".hapus",function(){
@@ -419,15 +490,20 @@
                                 timer: 1500
                         });
                         $('#data-tabel').DataTable().ajax.reload();
+                    },
+                    error:function(err){
+                        console.log(err);
+                        Swal.fire({
+                            position: "center",
+                            icon: "error",
+                            title: "Gagal menghapus data!",
+                            showConfirmButton: false,
+                            timer: 1500
+                        });
                     }
                 });
             }
         });
-
-
     });
-
-
 </script>
-
 @endsection

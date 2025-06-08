@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\LeaveApplication; // Assuming you have this model
+use App\Models\LeaveApplication;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class LandingPageController extends Controller
 {
@@ -15,25 +16,30 @@ class LandingPageController extends Controller
      */
     public function index()
     {
-        // Get recent approved leave applications - limited to 6 for display
         $leaveApplications = [];
         
-        // Check if LeaveApplication model exists and the table is available
         try {
-            if (class_exists('App\Models\LeaveApplication')) {
-                $leaveApplications = LeaveApplication::latest()
-                    ->take(6)
-                    ->get();
-            } else {
-                // Fallback to raw query if model doesn't exist
-                $leaveApplications = DB::table('leave_applications')
-                    ->orderBy('created_at', 'desc')
-                    ->limit(6)
-                    ->get();
-            }
+            // Get recent leave applications for public display
+            // You can adjust the filter based on your business logic
+            // Option 1: Show all recent applications
+            $leaveApplications = LeaveApplication::with(['user', 'approver'])
+                ->latest('created_at')
+                ->take(10) // Increased to 10 for better display
+                ->get();
+            
+            // Option 2: Show only approved applications (uncomment if needed)
+            // $leaveApplications = LeaveApplication::with(['user', 'approver'])
+            //     ->where('status', 'approved')
+            //     ->latest('approved_at')
+            //     ->take(10)
+            //     ->get();
+            
         } catch (\Exception $e) {
-            // In case of error (table doesn't exist), leave it empty
-            // The view has static fallback data for this case
+            // Log the error for debugging
+            Log::error('Error fetching leave applications for landing page: ' . $e->getMessage());
+            
+            // Leave empty array - blade template has fallback static data
+            $leaveApplications = [];
         }
         
         return view('layouts.landing', compact('leaveApplications'));

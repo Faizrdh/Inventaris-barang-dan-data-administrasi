@@ -22,9 +22,9 @@ class SenderLetterController extends Controller
         if($request->ajax()){
             return DataTables::of($senderLetters)
                 ->addColumn('tindakan', function($data){
-                    $button = '<a href="javascript:void(0)" class="btn btn-warning btn-sm ubah" id="'.$data->id.'"><i class="fas fa-edit"></i> '.__("edit").'</a>';
-                    $button .= ' <a href="javascript:void(0)" class="btn btn-danger btn-sm hapus" id="'.$data->id.'"><i class="fas fa-trash"></i> '.__("delete").'</a>';
-                    return $button;
+                 $button = '<a href="javascript:void(0)" class="btn btn-success btn-sm ubah" id="'.$data->id.'"><i class="fas fa-edit"></i> '.__("edit").'</a>';
+                $button .= ' <a href="javascript:void(0)" class="btn btn-danger btn-sm hapus" id="'.$data->id.'"><i class="fas fa-trash"></i> '.__("delete").'</a>';
+                return $button;
                 })
                 ->rawColumns(['tindakan'])
                 ->make(true);

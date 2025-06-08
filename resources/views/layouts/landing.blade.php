@@ -271,14 +271,14 @@
             </tr>
           </thead>
           <tbody>
-            @foreach($leaveApplications as $key => $application)
+            @forelse($leaveApplications as $key => $application)
             <tr>
               <td>{{ $key + 1 }}</td>
-              <td>{{ $application->employee_name }}</td>
+              <td>{{ $application->name }}</td> {{-- PERBAIKAN: Ganti employee_name menjadi name --}}
               <td>{{ $application->employee_id }}</td>
               <td>{{ $application->leave_type }}</td>
-              <td>{{ date('Y-m-d', strtotime($application->start_date)) }}</td>
-              <td>{{ date('Y-m-d', strtotime($application->end_date)) }}</td>
+              <td>{{ $application->start_date ? $application->start_date->format('Y-m-d') : '-' }}</td> {{-- PERBAIKAN: Handle null date --}}
+              <td>{{ $application->end_date ? $application->end_date->format('Y-m-d') : '-' }}</td> {{-- PERBAIKAN: Handle null date --}}
               <td class="text-center">
                 @if($application->status == 'approved')
                 <span class="status-approved">Disetujui</span>
@@ -289,10 +289,8 @@
                 @endif
               </td>
             </tr>
-            @endforeach
-            
-            <!-- Fallback static data if no data is available -->
-            @if(count($leaveApplications) == 0)
+            @empty
+            {{-- PERBAIKAN: Gunakan @empty untuk fallback data --}}
             <tr>
               <td>1</td>
               <td>Siti Nur</td>
@@ -347,7 +345,7 @@
               <td>2024-08-12</td>
               <td class="text-center"><span class="status-approved">Disetujui</span></td>
             </tr>
-            @endif
+            @endforelse
           </tbody>
         </table>
       </div>

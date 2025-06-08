@@ -80,7 +80,7 @@
               <div class="icon">
                 <i class="ion ion-arrow-swap"></i>
               </div>
-              <a href="{{route('transaksi.masuk')}}" class="small-box-footer">{{ __('messages.more-info') }} <i class="fas fa-arrow-circle-right"></i></a>
+              <a href="{{route('transaksi.masuk.index')}}" class="small-box-footer">{{ __('messages.more-info') }} <i class="fas fa-arrow-circle-right"></i></a>
             </div>
           </div>
 

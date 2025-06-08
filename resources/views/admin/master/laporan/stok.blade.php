@@ -26,14 +26,14 @@
                                         </div>
                                     </div>
                                     <div class="col-sm-4 pt-4">
-                                        <button class="btn btn-primary font-weight-bold m-1 mt-1" id="filter"><i class="fas fa-filter m-1"></i>{{ __("filter") }}</button>
+                                        <button class="btn btn-primary font-weight-bold m-1 mt-1" id="filter">{{ __("filter") }}</button>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-lg-6  w-100 d-flex justify-content-end align-items-center">
-                                    <button class="btn btn-outline-primary font-weight-bold m-1" id="print"><i class="fas fa-print m-1"></i>{{ __("print") }}</button>
-                                    <button class="btn btn-outline-danger font-weight-bold m-1" id="export-pdf"><i class="fas fa-file-pdf m-1"></i>{{ __("messages.export-to", ["file" => "pdf"]) }}</button>
-                                    <button class="btn btn-outline-success font-weight-bold m-1" id="export-excel"><i class="fas fa-file-excel m-1"></i>{{ __("messages.export-to", ["file" => "excel"]) }}</button>
+                                    <button class="btn btn-outline-primary font-weight-bold m-1" id="print">{{ __("print") }}</button>
+                                    <button class="btn btn-outline-danger font-weight-bold m-1" id="export-pdf">{{ __("messages.export-to", ["file" => "pdf"]) }}</button>
+                                    <button class="btn btn-outline-success font-weight-bold m-1" id="export-excel">{{ __("messages.export-to", ["file" => "excel"]) }}</button>
                             </div>
                         </div>
                     </div>
@@ -58,6 +58,7 @@
             </div>
         </div>
     </div>
+
     <x-data-table/>
     <script>
         $.ajaxSetup({
@@ -96,29 +97,29 @@
                         }
                     },
                     {
-                    data:"kode_barang",
-                    name:"kode_barang"
-                   },
-                   {
-                    data:"nama_barang",
-                    name:"nama_barang"
-                   },
-                   {
-                    data:"stok_awal",
-                    name:"stok_awal"
-                   },
-                   {
-                    data:"jumlah_masuk",
-                    name:"jumlah_masuk"
-                   },
-                   {
-                    data:"jumlah_keluar",
-                    name:"jumlah_keluar"
-                   },
-                   {
-                    data:"total",
-                    name:"total"
-                   }
+                        data:"kode_barang",
+                        name:"kode_barang"
+                    },
+                    {
+                        data:"nama_barang",
+                        name:"nama_barang"
+                    },
+                    {
+                        data:"stok_awal",
+                        name:"stok_awal"
+                    },
+                    {
+                        data:"jumlah_masuk",
+                        name:"jumlah_masuk"
+                    },
+                    {
+                        data:"jumlah_keluar",
+                        name:"jumlah_keluar"
+                    },
+                    {
+                        data:"total",
+                        name:"total"
+                    }
                 ],
                 buttons:[
                     {
