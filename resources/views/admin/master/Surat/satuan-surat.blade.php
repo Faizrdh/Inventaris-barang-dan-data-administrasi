@@ -5,63 +5,25 @@
 <x-head-datatable/>
 
 <style>
-    .file-info-container {
-        min-width: 200px;
-    }
-    
+    .file-info-container { min-width: 200px; }
     .file-details {
         background-color: #f8f9fa;
         padding: 8px;
         border-radius: 4px;
         border-left: 3px solid #007bff;
     }
+    .file-name { font-size: 0.9em; word-break: break-word; }
+    .file-meta div { margin-bottom: 2px; }
+    .badge { font-size: 0.8em; }
+    .table td { vertical-align: middle; }
+    .btn-group-actions { display: flex; flex-wrap: wrap; gap: 2px; }
+    .btn-sm { font-size: 0.75rem; padding: 0.25rem 0.5rem; }
     
-    .file-name {
-        font-size: 0.9em;
-        word-break: break-word;
-    }
-    
-    .file-meta div {
-        margin-bottom: 2px;
-    }
-    
-    .badge {
-        font-size: 0.8em;
-    }
-    
-    .table td {
-        vertical-align: middle;
-    }
-    
-    .btn-group-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 2px;
-    }
-    
-    .btn-sm {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-    }
-    
-    /* Responsive untuk mobile */
     @media (max-width: 768px) {
-        .file-info-container {
-            min-width: 150px;
-        }
-        
-        .file-details {
-            padding: 6px;
-        }
-        
-        .btn-group-actions {
-            flex-direction: column;
-        }
-        
-        .btn-sm {
-            margin-bottom: 2px !important;
-            margin-right: 0 !important;
-        }
+        .file-info-container { min-width: 150px; }
+        .file-details { padding: 6px; }
+        .btn-group-actions { flex-direction: column; }
+        .btn-sm { margin-bottom: 2px !important; margin-right: 0 !important; }
     }
 </style>
 
@@ -69,35 +31,36 @@
     <div class="row">
         <div class="col-lg-12">
             <div class="card w-100">
-                <div class="card-header row">
+                <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center w-100">
                         <h5 class="card-title mb-0">{{ __("letter management") }}</h5>
                         @if(Auth::user()->role->name != 'staff')
-                            <button class="btn btn-success" type="button" data-toggle="modal" data-target="#TambahData" id="modal-button">
+                            <button class="btn btn-success" type="button" data-toggle="modal" data-target="#letterModal" id="modal-button">
                                 <i class="fas fa-plus"></i> {{ __("add data") }}
                             </button>
                         @endif
                     </div>
                 </div>
 
-                <!-- Modal -->
-                <div class="modal fade" id="TambahData" tabindex="-1" aria-labelledby="TambahDataModalLabel" aria-hidden="true">
+                <!-- Letter Form Modal -->
+                <div class="modal fade" id="letterModal" tabindex="-1" aria-labelledby="letterModalLabel" aria-hidden="true">
                     <div class="modal-dialog modal-lg">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="TambahDataModalLabel">{{ __("Tambah data") }}</h5>
+                                <h5 class="modal-title" id="letterModalLabel">{{ __("Tambah data") }}</h5>
                                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                                     <span aria-hidden="true">&times;</span>
                                 </button>
                             </div>
                             <form id="letterForm" enctype="multipart/form-data">
                                 <div class="modal-body">
+                                    <input type="hidden" name="id" id="id">
+                                    
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="form-group mb-3">
                                                 <label for="code">{{ __("Nomor surat") }} <span class="text-danger">*</span></label>
                                                 <input type="text" class="form-control" id="code" name="code" autocomplete="off" placeholder="Masukkan Nomor Surat">
-                                                <input type="hidden" name="id" id="id">
                                             </div>
                                         </div>
                                         <div class="col-md-6">
@@ -135,7 +98,7 @@
                                         <div class="col-md-6">
                                             <div class="form-group mb-3">
                                                 <label for="from_department">{{ __("from department") }}</label>
-                                                <input type="text" class="form-control" id="from_department" name="Dari" autocomplete="off" placeholder="asal surat" readonly>
+                                                <input type="text" class="form-control" id="from_department" name="from_department" autocomplete="off" placeholder="asal surat" readonly>
                                                 <small class="form-text text-muted">Akan otomatis terisi jika memilih Pengirim surat</small>
                                             </div>
                                         </div>
@@ -149,7 +112,6 @@
                                             <input type="file" class="custom-file-input" id="file" name="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
                                             <label class="custom-file-label" for="file">Pilih file...</label>
                                         </div>
-                                        <small class="form-text text-muted">{{ __("Masukan surat dengan tipe file yang sesuai") }}</small>
                                     </div>
                                     
                                     <div id="current-file" class="form-group mb-3" style="display: none;">
@@ -171,10 +133,10 @@
                                     </div>
                                 </div>
                                 <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-dismiss="modal" id="kembali">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
                                         <i class="fas fa-times"></i> {{ __("cancel") }}
                                     </button>
-                                    <button type="button" class="btn btn-success" id="simpan">
+                                    <button type="button" class="btn btn-success" id="save-btn">
                                         <i class="fas fa-save"></i> <span id="save-text">{{ __("save") }}</span>
                                     </button>
                                 </div>
@@ -183,9 +145,47 @@
                     </div>
                 </div>
 
+                <!-- Delete Confirmation Modal -->
+                <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="deleteConfirmModalLabel">
+                                    <i class="fas fa-exclamation-triangle text-warning"></i> 
+                                    Konfirmasi Hapus
+                                </h5>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="text-center">
+                                    <i class="fas fa-trash-alt fa-3x text-danger mb-3"></i>
+                                    <h5>Apakah Anda yakin ingin menghapus data ini?</h5>
+                                    <p class="text-muted">
+                                        Data yang dihapus masih dapat dikembalikan melalui fitur restore.<br>
+                                        <strong>File yang terlampir akan tetap tersimpan.</strong>
+                                    </p>
+                                    <div id="delete-item-info" class="alert alert-info">
+                                        <!-- Info item yang akan dihapus -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                    <i class="fas fa-times"></i> Batal
+                                </button>
+                                <button type="button" class="btn btn-danger" id="confirm-delete-btn">
+                                    <i class="fas fa-trash"></i> Ya, Hapus Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table id="data-surat" width="100%" class="table table-bordered text-nowrap border-bottom dataTable no-footer dtr-inline collapsed">
+                        <table id="data-surat" width="100%" class="table table-bordered text-nowrap border-bottom dataTable">
                             <thead class="thead-light">
                                 <tr>
                                     <th class="border-bottom-0" width="5%">{{ __("no") }}</th>
@@ -211,66 +211,39 @@
 <x-data-table/>
 
 <script>
+    // Global Variables
     let currentLetterId = null;
     let currentFileData = null;
+    let isEditMode = false;
 
-    function isi(){
+    // Initialize DataTable
+    function initDataTable() {
         $('#data-surat').DataTable({
-            responsive: true, 
-            lengthChange: true, 
+            responsive: true,
+            lengthChange: true,
             autoWidth: false,
             processing: true,
             serverSide: true,
             ajax: {
                 url: `{{route('surat.list')}}`,
                 type: 'GET',
-                error: function(xhr, error, thrown) {
-                    console.log('DataTables Ajax Error:', xhr, error, thrown);
-                }
+                error: (xhr, error, thrown) => console.log('DataTables Ajax Error:', xhr, error, thrown)
             },
             columns: [
-                {
-                    "data": null, 
-                    "sortable": false,
-                    render: function(data, type, row, meta){
-                        return meta.row + meta.settings._iDisplayStart + 1;
-                    }
-                },
-                {
-                    data: 'code',
-                    name: 'code'
-                },
-                {
-                    data: 'name',
-                    name: 'name'
-                },
-                {
-                    data: 'category_letter_name',
-                    name: 'category_letter_name'
-                },
-                {
-                    data: 'sender_name',
-                    name: 'sender_name'
-                },
-                {
-                    data: 'from_department',
-                    name: 'from_department'
-                },
-                {
-                    data: 'file_info',
-                    name: 'file_info',
-                    orderable: false,
-                    searchable: false
-                },
+                { data: null, sortable: false, render: (data, type, row, meta) => meta.row + meta.settings._iDisplayStart + 1 },
+                { data: 'code', name: 'code' },
+                { data: 'name', name: 'name' },
+                { data: 'category_letter_name', name: 'category_letter_name' },
+                { data: 'sender_name', name: 'sender_name' },
+                { data: 'from_department', name: 'from_department' },
+                { data: 'file_info', name: 'file_info', orderable: false, searchable: false },
                 @if(Auth::user()->role->name != 'staff')
-                {
-                    data: 'tindakan',
-                    name: 'tindakan',
-                    orderable: false,
+                { 
+                    data: 'tindakan', 
+                    name: 'tindakan', 
+                    orderable: false, 
                     searchable: false,
-                    render: function(data, type, row) {
-                        return '<div class="btn-group-actions">' + data + '</div>';
-                    }
+                    render: (data) => `<div class="btn-group-actions">${data}</div>`
                 }
                 @endif
             ],
@@ -283,37 +256,31 @@
                 infoFiltered: "(disaring dari _MAX_ total data)",
                 search: "Cari:",
                 paginate: {
-                    first: "Pertama",
-                    last: "Terakhir",
-                    next: "Selanjutnya",
-                    previous: "Sebelumnya"
+                    first: "Pertama", last: "Terakhir", 
+                    next: "Selanjutnya", previous: "Sebelumnya"
                 }
-            },
-            drawCallback: function(settings) {
-                console.log('DataTables draw callback - Data loaded:', settings.json);
             }
         });
     }
 
+    // Form Validation
     function validateForm() {
-        if($('#code').val().length == 0){
-            showAlert('warning', 'Kode surat tidak boleh kosong!');
-            return false;
-        }
-        
-        if($('#name').val().length == 0){
-            showAlert('warning', 'Nama surat tidak boleh kosong!');
-            return false;
-        }
-        
-        if($('#category_letter_id').val().length == 0){
-            showAlert('warning', 'Jenis surat tidak boleh kosong!');
-            return false;
-        }
+        const fields = [
+            { id: 'code', message: 'Kode surat tidak boleh kosong!' },
+            { id: 'name', message: 'Nama surat tidak boleh kosong!' },
+            { id: 'category_letter_id', message: 'Jenis surat tidak boleh kosong!' }
+        ];
 
+        for (const field of fields) {
+            if (!$(`#${field.id}`).val().trim()) {
+                showAlert('warning', field.message);
+                return false;
+            }
+        }
         return true;
     }
 
+    // Alert Helper
     function showAlert(type, message) {
         Swal.fire({
             position: "center",
@@ -324,130 +291,76 @@
         });
     }
 
-    function simpan(){
-        if (!validateForm()) return;
-
+    // Form Data Preparation
+    function prepareFormData() {
         const formData = new FormData();
-        formData.append('code', $('#code').val());
-        formData.append('name', $('#name').val());
-        formData.append('category_letter_id', $('#category_letter_id').val());
-        formData.append('sender_letter_id', $('#sender_letter_id').val());
-        formData.append('from_department', $('#from_department').val());
+        const fields = ['code', 'name', 'category_letter_id', 'sender_letter_id', 'from_department'];
+        
+        if (isEditMode) formData.append('id', $('#id').val());
+        fields.forEach(field => formData.append(field, $(`#${field}`).val()));
         formData.append('_token', '{{csrf_token()}}');
+        
+        if (isEditMode) formData.append('_method', 'PUT');
         
         const fileInput = document.getElementById('file');
         if (fileInput.files.length > 0) {
             formData.append('file', fileInput.files[0]);
-            console.log('File akan diupload:', fileInput.files[0].name);
         }
-
-        // Debug: Tampilkan semua data yang akan dikirim
-        for (let pair of formData.entries()) {
-            console.log(pair[0] + ': ' + pair[1]);
-        }
-
-        $.ajax({
-            url: `{{route('surat.save')}}`,
-            type: "post",
-            data: formData,
-            processData: false,
-            contentType: false,
-            beforeSend: function() {
-                $('#simpan').prop('disabled', true);
-                $('#save-text').text('{{ __("saving...") }}');
-            },
-            success: function(res){
-                console.log('Response save:', res);
-                showAlert('success', res.message);
-                $('#kembali').click();
-                clearForm();
-                $('#data-surat').DataTable().ajax.reload();
-            },
-            error: function(err){
-                console.log('Error save:', err);
-                let message = "Terjadi kesalahan!";
-                if (err.responseJSON && err.responseJSON.message) {
-                    message = err.responseJSON.message;
-                }
-                showAlert('error', message);
-            },
-            complete: function() {
-                $('#simpan').prop('disabled', false);
-                $('#save-text').text('{{ __("save") }}');
-            }
-        });
+        
+        return formData;
     }
 
-    function ubah(){
+    // Save/Update Letter
+    function saveOrUpdateLetter() {
         if (!validateForm()) return;
 
-        const formData = new FormData();
-        formData.append('id', $('#id').val());
-        formData.append('code', $('#code').val());
-        formData.append('name', $('#name').val());
-        formData.append('category_letter_id', $('#category_letter_id').val());
-        formData.append('sender_letter_id', $('#sender_letter_id').val());
-        formData.append('from_department', $('#from_department').val());
-        formData.append('_token', '{{csrf_token()}}');
-        formData.append('_method', 'PUT');
-        
-        const fileInput = document.getElementById('file');
-        if (fileInput.files.length > 0) {
-            formData.append('file', fileInput.files[0]);
-            console.log('File akan diupdate:', fileInput.files[0].name);
-        }
-
-        // Debug: Tampilkan semua data yang akan dikirim
-        for (let pair of formData.entries()) {
-            console.log(pair[0] + ': ' + pair[1]);
-        }
+        const formData = prepareFormData();
+        const url = isEditMode ? '{{route("surat.update")}}' : '{{route("surat.save")}}';
+        const actionText = isEditMode ? 'updating...' : 'saving...';
 
         $.ajax({
-            url: `{{route('surat.update')}}`,
+            url,
             type: "post",
             data: formData,
             processData: false,
             contentType: false,
-            beforeSend: function() {
-                $('#simpan').prop('disabled', true);
-                $('#save-text').text('{{ __("updating...") }}');
+            beforeSend: () => {
+                $('#save-btn').prop('disabled', true);
+                $('#save-text').text(actionText);
             },
-            success: function(res){
-                console.log('Response update:', res);
+            success: (res) => {
                 showAlert('success', res.message);
-                $('#kembali').click();
-                clearForm();
+                closeModal();
                 $('#data-surat').DataTable().ajax.reload();
             },
-            error: function(err){
-                console.log('Error update:', err);
-                let message = "Terjadi kesalahan!";
-                if (err.responseJSON && err.responseJSON.message) {
-                    message = err.responseJSON.message;
-                }
+            error: (err) => {
+                const message = err.responseJSON?.message || "Terjadi kesalahan!";
                 showAlert('error', message);
             },
-            complete: function() {
-                $('#simpan').prop('disabled', false);
-                $('#save-text').text('{{ __("save changes") }}');
+            complete: () => {
+                $('#save-btn').prop('disabled', false);
+                $('#save-text').text(isEditMode ? '{{ __("save changes") }}' : '{{ __("save") }}');
             }
         });
     }
 
-    function clearForm(){
-        $("#code").val('');
-        $("#name").val('');
-        $("#category_letter_id").val('');
-        $("#sender_letter_id").val('');
-        $("#from_department").val('');
-        $("#id").val('');
-        $("#file").val('');
-        $(".custom-file-label").text('Pilih file...');
-        $("#current-file").hide();
+    // Clear Form
+    function clearForm() {
+        $('#letterForm')[0].reset();
+        $('.custom-file-label').text('Pilih file...');
+        $('#current-file').hide();
         currentLetterId = null;
         currentFileData = null;
+        isEditMode = false;
     }
 
+    // Close Modal
+    function closeModal() {
+        $('#letterModal').modal('hide');
+        clearForm();
+    }
+
+    // Show Current File Info
     function showCurrentFile(data) {
         currentFileData = data;
         if (data.file_name) {
@@ -455,7 +368,7 @@
             const fileType = data.file_type || 'Unknown type';
             const uploadDate = data.updated_at ? new Date(data.updated_at).toLocaleDateString('id-ID') : '-';
             
-            $("#file-info").html(`
+            $('#file-info').html(`
                 <div class="d-flex align-items-center mb-2">
                     <i class="${getFileIcon(fileType)} me-2" style="font-size: 1.5em;"></i>
                     <div>
@@ -466,12 +379,13 @@
                     </div>
                 </div>
             `);
-            $("#current-file").show();
+            $('#current-file').show();
         } else {
-            $("#current-file").hide();
+            $('#current-file').hide();
         }
     }
 
+    // File Helper Functions
     function getFileIcon(mimeType) {
         const icons = {
             'application/pdf': 'fas fa-file-pdf text-danger',
@@ -492,99 +406,102 @@
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    $(document).ready(function(){
-        isi();
-
-        // Auto-fill from_department when sender is selected
-        $('#sender_letter_id').on('change', function() {
-            const selectedOption = $(this).find('option:selected');
-            const department = selectedOption.data('department');
-            
-            if (department) {
-                $('#from_department').val(department);
-                $('#from_department').prop('readonly', true);
-            } else {
-                $('#from_department').val('');
-                $('#from_department').prop('readonly', false);
+    // File Actions
+    function handleFileAction(action, id) {
+        const actions = {
+            download: () => {
+                const link = document.createElement('a');
+                link.href = `{{route('surat.download-file')}}?id=${id}`;
+                link.download = '';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            },
+            view: () => {
+                const viewWindow = window.open(`{{route('surat.view-file')}}?id=${id}`, '_blank');
+                if (!viewWindow) {
+                    showAlert('warning', 'Silakan izinkan popup untuk melihat file');
+                }
             }
+        };
+
+        if (actions[action]) {
+            Swal.fire({
+                title: action === 'download' ? 'Mengunduh file...' : 'Membuka file...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+            
+            actions[action]();
+            setTimeout(() => Swal.close(), 1000);
+        }
+    }
+
+    // Delete Confirmation
+    function showDeleteConfirmation(id, letterData) {
+        $('#delete-item-info').html(`
+            <strong>Nomor Surat:</strong> ${letterData.code || 'N/A'}<br>
+            <strong>Nama Surat:</strong> ${letterData.name || 'N/A'}
+        `);
+        
+        $('#confirm-delete-btn').off('click').on('click', () => deleteLetter(id));
+        $('#deleteConfirmModal').modal('show');
+    }
+
+    function deleteLetter(id) {
+        $('#deleteConfirmModal').modal('hide');
+        
+        Swal.fire({
+            title: 'Menghapus data...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
         });
 
-        // Update file label when file is selected
+        $.ajax({
+            url: "{{route('surat.delete')}}",
+            type: "delete",
+            data: { id, "_token": "{{csrf_token()}}" },
+            success: (res) => {
+                showAlert('success', res.message);
+                $('#data-surat').DataTable().ajax.reload();
+            },
+            error: () => showAlert('error', 'Gagal menghapus data!')
+        });
+    }
+
+    // Event Handlers
+    $(document).ready(function() {
+        initDataTable();
+
+        // Auto-fill department from sender
+        $('#sender_letter_id').on('change', function() {
+            const department = $(this).find('option:selected').data('department');
+            $('#from_department').val(department || '').prop('readonly', !!department);
+        });
+
+        // File input change
         $('#file').on('change', function() {
             const filename = $(this).val().split('\\').pop();
             $(this).next('.custom-file-label').text(filename || 'Pilih file...');
         });
 
-        $('#simpan').on('click', function(){
-            if($('#save-text').text() === '{{ __("save changes") }}'){
-                ubah();
-            } else {
-                simpan();
-            }
-        });
+        // Save button
+        $('#save-btn').on('click', saveOrUpdateLetter);
 
-        $("#modal-button").on("click", function(){
+        // Add new letter
+        $('#modal-button').on('click', function() {
             clearForm();
-            $("#save-text").text("{{ __('save') }}");
-            $("#TambahDataModalLabel").text("{{ __('add letter') }}");
-            $("#from_department").prop('readonly', false);
+            $('#letterModalLabel').text('{{ __("add letter") }}');
+            $('#from_department').prop('readonly', false);
         });
 
-        // Preview current file
-        $("#preview-file").on("click", function(){
-            if (currentLetterId) {
-                Swal.fire({
-                    title: 'Membuka file...',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-                
-                const viewWindow = window.open(`{{route('surat.view-file')}}?id=${currentLetterId}`, '_blank');
-                
-                setTimeout(() => {
-                    Swal.close();
-                }, 1000);
-                
-                if (!viewWindow) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Popup Diblokir',
-                        text: 'Silakan izinkan popup untuk melihat file'
-                    });
-                }
-            }
-        });
-
-        // Download current file
-        $("#download-current-file").on("click", function(){
-            if (currentLetterId) {
-                Swal.fire({
-                    title: 'Mengunduh file...',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-                
-                const link = document.createElement('a');
-                link.href = `{{route('surat.download-file')}}?id=${currentLetterId}`;
-                link.download = '';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                setTimeout(() => {
-                    Swal.close();
-                }, 1000);
-            }
-        });
-
-        // Delete current file
-        $("#delete-file").on("click", function(){
+        // Current file actions
+        $('#preview-file').on('click', () => currentLetterId && handleFileAction('view', currentLetterId));
+        $('#download-current-file').on('click', () => currentLetterId && handleFileAction('download', currentLetterId));
+        
+        $('#delete-file').on('click', function() {
             if (!currentLetterId) return;
-
+            
             Swal.fire({
                 title: 'Hapus File?',
                 text: "File yang dihapus tidak dapat dikembalikan!",
@@ -599,167 +516,64 @@
                     $.ajax({
                         url: "{{route('surat.delete-file')}}",
                         type: "delete",
-                        data: {
-                            id: currentLetterId,
-                            "_token": "{{csrf_token()}}"
-                        },
-                        success: function(res){
+                        data: { id: currentLetterId, "_token": "{{csrf_token()}}" },
+                        success: (res) => {
                             showAlert('success', res.message);
-                            $("#current-file").hide();
+                            $('#current-file').hide();
                             $('#data-surat').DataTable().ajax.reload();
                         },
-                        error: function(err){
-                            console.log(err);
-                            showAlert('error', 'Gagal menghapus file!');
-                        }
+                        error: () => showAlert('error', 'Gagal menghapus file!')
                     });
                 }
             });
         });
     });
 
-    // Event handlers for table actions
-    $(document).on("click", ".ubah", function(){
-        let id = $(this).attr('id');
+    // Table Action Handlers
+    $(document).on("click", ".ubah", function() {
+        const id = $(this).attr('id');
         currentLetterId = id;
-        $("#modal-button").click();
-        $("#save-text").text("{{ __('save changes') }}");
-        $("#TambahDataModalLabel").text("{{ __('edit letter') }}");
+        isEditMode = true;
+        
+        $('#modal-button').click();
+        $('#letterModalLabel').text('{{ __("edit letter") }}');
         
         $.ajax({
             url: "{{route('surat.detail')}}",
             type: "post",
-            data: {
-                id: id,
-                "_token": "{{csrf_token()}}"
-            },
-            success: function(response){
-                console.log('Response detail:', response);
+            data: { id, "_token": "{{csrf_token()}}" },
+            success: (response) => {
                 const data = response.data;
-                $("#id").val(data.id);
-                $("#code").val(data.code);
-                $("#name").val(data.name);
-                $("#category_letter_id").val(data.category_letter_id);
-                $("#sender_letter_id").val(data.sender_letter_id || '');
-                $("#from_department").val(data.from_department || '');
-                
-                // Set readonly status berdasarkan apakah ada sender_letter_id
-                if (data.sender_letter_id) {
-                    $("#from_department").prop('readonly', true);
-                } else {
-                    $("#from_department").prop('readonly', false);
-                }
-                
+                $('#id').val(data.id);
+                $('#code').val(data.code);
+                $('#name').val(data.name);
+                $('#category_letter_id').val(data.category_letter_id);
+                $('#sender_letter_id').val(data.sender_letter_id || '');
+                $('#from_department').val(data.from_department || '').prop('readonly', !!data.sender_letter_id);
                 showCurrentFile(data);
             },
-            error: function(err){
-                console.log('Error detail:', err);
-                showAlert('error', 'Gagal mengambil data!');
-            }
+            error: () => showAlert('error', 'Gagal mengambil data!')
         });
     });
 
-    $(document).on("click", ".download", function(){
-        let id = $(this).attr('id');
-        // Tampilkan loading
-        Swal.fire({
-            title: 'Mengunduh file...',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-        
-        // Buat link download
-        const link = document.createElement('a');
-        link.href = `{{route('surat.download-file')}}?id=${id}`;
-        link.download = '';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Tutup loading setelah delay singkat
-        setTimeout(() => {
-            Swal.close();
-        }, 1000);
+    $(document).on("click", ".download", function() {
+        handleFileAction('download', $(this).attr('id'));
     });
 
-    $(document).on("click", ".view", function(){
-        let id = $(this).attr('id');
-        // Tampilkan loading
-        Swal.fire({
-            title: 'Membuka file...',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-        
-        // Buka file di tab baru
-        const viewWindow = window.open(`{{route('surat.view-file')}}?id=${id}`, '_blank');
-        
-        // Tutup loading setelah delay singkat
-        setTimeout(() => {
-            Swal.close();
-        }, 1000);
-        
-        // Jika popup diblokir
-        if (!viewWindow) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Popup Diblokir',
-                text: 'Silakan izinkan popup untuk melihat file',
-                showConfirmButton: true
-            });
-        }
+    $(document).on("click", ".view", function() {
+        handleFileAction('view', $(this).attr('id'));
     });
 
-    $(document).on("click", ".hapus", function(){
-        let id = $(this).attr('id');
-        const swalWithBootstrapButtons = Swal.mixin({
-            customClass: {
-                confirmButton: "btn btn-success m-1",
-                cancelButton: "btn btn-danger m-1"
-            },
-            buttonsStyling: false
-        });
+    $(document).on("click", ".hapus", function() {
+        const id = $(this).attr('id');
         
-        swalWithBootstrapButtons.fire({
-            title: "Anda Yakin?",
-            text: "Data Ini Akan Di Hapus Beserta File Terlampir",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonText: "Ya, Hapus",
-            cancelButtonText: "Tidak, Kembali!",
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: "{{route('surat.delete')}}",
-                    type: "delete",
-                    data: {
-                        id: id,
-                        "_token": "{{csrf_token()}}"
-                    },
-                    beforeSend: function() {
-                        Swal.fire({
-                            title: 'Menghapus...',
-                            allowOutsideClick: false,
-                            didOpen: () => {
-                                Swal.showLoading();
-                            }
-                        });
-                    },
-                    success: function(res){
-                        showAlert('success', res.message);
-                        $('#data-surat').DataTable().ajax.reload();
-                    },
-                    error: function(err){
-                        console.log(err);
-                        showAlert('error', 'Gagal menghapus data!');
-                    }
-                });
-            }
+        // Get letter data first
+        $.ajax({
+            url: "{{route('surat.detail')}}",
+            type: "post",
+            data: { id, "_token": "{{csrf_token()}}" },
+            success: (response) => showDeleteConfirmation(id, response.data),
+            error: () => showDeleteConfirmation(id, { code: 'N/A', name: 'N/A' })
         });
     });
 </script>

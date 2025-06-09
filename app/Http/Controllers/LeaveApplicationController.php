@@ -7,357 +7,248 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Yajra\DataTables\DataTables;
 use App\Models\LeaveApplication;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class LeaveApplicationController extends Controller
 {
-    /**
-     * Display the leave application page.
-     *
-     * @return \Illuminate\View\View
-     */
     public function index(): View
     {
         return view('admin.master.cuti.leave-application');
     }
 
-    /**
-     * Display list of leave applications in DataTables format.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-   // PERBAIKAN di LeaveApplicationController.php - method list()
+    public function list(Request $request): JsonResponse
+    {
+        try {
+            if (!$request->ajax()) {
+                return $this->errorResponse('Invalid request. Expected an AJAX request.', 400);
+            }
 
-public function list(Request $request): JsonResponse
-{
-    try {
-        // Get latest leave applications
-        $leaveApplications = LeaveApplication::with(['user', 'approver'])->latest();
+            $leaveApplications = LeaveApplication::with(['user', 'approver'])->latest();
 
-        // Ensure response is given in AJAX condition
-        if ($request->ajax()) {
             return DataTables::of($leaveApplications)
-                ->addColumn('actions', function ($data) {
-                    // Create action buttons for DataTables
-                    $button = "<button class='edit btn btn-success btn-sm m-1' data-id='" . $data->id . "'><i class='fas fa-pen'></i> " . __("Edit") . "</button>";
-                    $button .= "<button class='delete btn btn-danger btn-sm m-1' data-id='" . $data->id . "'><i class='fas fa-trash'></i> " . __("Delete") . "</button>";
-                    $button .= "<button class='detail btn btn-info btn-sm m-1' data-id='" . $data->id . "'><i class='fas fa-eye'></i> " . __("Detail") . "</button>";
-                    
-                    if ($data->document_path) {
-                        // PERBAIKAN: Generate URL yang benar untuk document
-                        $documentUrl = asset('storage/' . $data->document_path);
-                        $button .= "<a href='" . $documentUrl . "' target='_blank' class='btn btn-secondary btn-sm m-1'><i class='fas fa-file-pdf'></i> " . __("View Document") . "</a>";
-                    }
-                    return $button;
-                })
-                ->addColumn('status_label', function ($data) {
-                    // Add status label according to application status
-                    if ($data->status == 'pending') {
-                        return "<span class='badge badge-warning'>" . __("Pending") . "</span>";
-                    } elseif ($data->status == 'approved') {
-                        return "<span class='badge badge-success'>" . __("Approved") . "</span>";
-                    } else {
-                        return "<span class='badge badge-danger'>" . __("Rejected") . "</span>";
-                    }
-                })
-                // PERBAIKAN: Format tanggal ke format date saja (YYYY-MM-DD)
-                ->editColumn('application_date', function ($data) {
-                    return $data->application_date ? $data->application_date->format('Y-m-d') : '';
-                })
-                ->editColumn('start_date', function ($data) {
-                    return $data->start_date ? $data->start_date->format('Y-m-d') : '';
-                })
-                ->editColumn('end_date', function ($data) {
-                    return $data->end_date ? $data->end_date->format('Y-m-d') : '';
-                })
+                ->addColumn('actions', fn($data) => $this->buildActionButtons($data))
+                ->addColumn('status_label', fn($data) => $data->status_label)
+                ->editColumn('application_date', fn($data) => $data->application_date?->format('Y-m-d'))
+                ->editColumn('start_date', fn($data) => $data->start_date?->format('Y-m-d'))
+                ->editColumn('end_date', fn($data) => $data->end_date?->format('Y-m-d'))
                 ->rawColumns(['actions', 'status_label'])
                 ->make(true);
+
+        } catch (\Exception $e) {
+            return $this->logAndReturnError('Error in leave application list', $e);
         }
-
-        // If not AJAX, still must return a response
-        return response()->json([
-            'message' => 'Invalid request. Expected an AJAX request.'
-        ], 400);
-    } catch (\Exception $e) {
-        Log::error('Error in leave application list: ' . $e->getMessage());
-        return response()->json([
-            'message' => 'An error occurred: ' . $e->getMessage()
-        ], 500);
     }
-}
 
-    /**
-     * Store a new leave application.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function save(Request $request): JsonResponse
     {
         try {
-            // Manual validation
-            $validated = $request->validate([
-                'code' => 'required|string|unique:leave_applications,code',
-                'name' => 'required|string|max:255',
-                'employee_id' => 'required|string|max:255',
-                'application_date' => 'required|date',
-                'leave_type' => 'required|string',
-                'start_date' => 'required|date',
-                'end_date' => 'required|date|after_or_equal:start_date',
-                'total_days' => 'required|integer|min:1',
-                'description' => 'required|string',
-                'document' => 'nullable|file|mimes:pdf|max:5120', // 5MB max
-            ]);
-
-            $leaveApplication = new LeaveApplication();
-            $leaveApplication->code = $request->code;
-            $leaveApplication->name = $request->name;
-            $leaveApplication->employee_id = $request->employee_id;
-            $leaveApplication->application_date = $request->application_date;
-            $leaveApplication->leave_type = $request->leave_type;
-            $leaveApplication->start_date = $request->start_date;
-            $leaveApplication->end_date = $request->end_date;
-            $leaveApplication->total_days = $request->total_days;
-            $leaveApplication->description = $request->description;
+            $validated = $this->validateLeaveApplication($request);
+            
+            $leaveApplication = new LeaveApplication($validated);
             $leaveApplication->status = 'pending';
             $leaveApplication->user_id = Auth::id();
 
-            // Handle file upload
             if ($request->hasFile('document')) {
-                $path = $request->file('document')->store('leave_documents', 'public');
-                $leaveApplication->document_path = $path;
+                $leaveApplication->document_path = $leaveApplication->saveDocument($request->file('document'));
             }
 
-            $status = $leaveApplication->save();
-
-            if (!$status) {
-                return response()->json(["message" => __("Failed to save")])->setStatusCode(400);
+            if (!$leaveApplication->save()) {
+                return $this->errorResponse(__("Failed to save"), 400);
             }
 
-            return response()->json(["message" => __("Saved successfully")])->setStatusCode(200);
+            return $this->successResponse(__("Saved successfully"));
+
         } catch (\Exception $e) {
-            Log::error('Error in save leave application: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'An error occurred: ' . $e->getMessage()
-            ], 500);
+            return $this->logAndReturnError('Error in save leave application', $e);
         }
     }
 
-    /**
-     * Get leave application details.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function detail(Request $request): JsonResponse
     {
         try {
-            $validated = $request->validate([
-                'id' => 'required|integer'
-            ]);
-
+            $validated = $request->validate(['id' => 'required|integer']);
+            
             $leaveApplication = LeaveApplication::with(['user', 'approver'])->find($validated['id']);
 
             if (!$leaveApplication) {
-                return response()->json(["message" => __("Not found.")], 404);
+                return $this->errorResponse(__("Not found."), 404);
             }
 
-            return response()->json(["data" => $leaveApplication])->setStatusCode(200);
+            return response()->json(["data" => $leaveApplication]);
+
         } catch (\Exception $e) {
-            Log::error('Error in get leave application detail: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'An error occurred: ' . $e->getMessage()
-            ], 500);
+            return $this->logAndReturnError('Error in get leave application detail', $e);
         }
     }
 
-    /**
-     * Update leave application.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function update(Request $request): JsonResponse
     {
         try {
-            // Manual validation
-            $validated = $request->validate([
-                'id' => 'required|integer',
-                'name' => 'required|string|max:255',
-                'employee_id' => 'required|string|max:255',
-                'application_date' => 'required|date',
-                'leave_type' => 'required|string',
-                'start_date' => 'required|date',
-                'end_date' => 'required|date|after_or_equal:start_date',
-                'total_days' => 'required|integer|min:1',
-                'description' => 'required|string',
-                'document' => 'nullable|file|mimes:pdf|max:5120',
-            ]);
-
-            $leaveApplication = LeaveApplication::find($validated['id']);
-
-            if (!$leaveApplication) {
-                return response()->json(["message" => __("Not found.")], 404);
-            }
-
-            // Check if application can still be edited (still pending)
-            if ($leaveApplication->status !== 'pending') {
-                return response()->json(["message" => __("Cannot edit processed application")])->setStatusCode(400);
-            }
-
-            $leaveApplication->name = $request->name;
-            $leaveApplication->employee_id = $request->employee_id;
-            $leaveApplication->application_date = $request->application_date;
-            $leaveApplication->leave_type = $request->leave_type;
-            $leaveApplication->start_date = $request->start_date;
-            $leaveApplication->end_date = $request->end_date;
-            $leaveApplication->total_days = $request->total_days;
-            $leaveApplication->description = $request->description;
-
-            // Handle file upload
-            if ($request->hasFile('document')) {
-                // Delete old file if exists
-                if ($leaveApplication->document_path) {
-                    Storage::disk('public')->delete($leaveApplication->document_path);
-                }
-
-                $path = $request->file('document')->store('leave_documents', 'public');
-                $leaveApplication->document_path = $path;
-            }
-
-            $status = $leaveApplication->save();
-
-            if (!$status) {
-                return response()->json(["message" => __("Failed to update")])->setStatusCode(400);
-            }
-
-            return response()->json(["message" => __("Updated successfully")])->setStatusCode(200);
-        } catch (\Exception $e) {
-            Log::error('Error in update leave application: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'An error occurred: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Delete leave application.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function delete(Request $request): JsonResponse
-    {
-        try {
-            $validated = $request->validate([
-                'id' => 'required|integer'
-            ]);
+            $validated = $this->validateLeaveApplication($request, true);
             
             $leaveApplication = LeaveApplication::find($validated['id']);
 
             if (!$leaveApplication) {
-                return response()->json(["message" => __("Not found.")], 404);
+                return $this->errorResponse(__("Not found."), 404);
             }
 
-            // Check if application can still be deleted (still pending)
-            if ($leaveApplication->status !== 'pending') {
-                return response()->json(["message" => __("Cannot delete processed application")])->setStatusCode(400);
+            if (!$leaveApplication->canBeModified()) {
+                return $this->errorResponse(__("Cannot edit processed application"), 400);
             }
 
-            // Delete file if exists
-            if ($leaveApplication->document_path) {
-                Storage::disk('public')->delete($leaveApplication->document_path);
+            $leaveApplication->fill($validated);
+
+            if ($request->hasFile('document')) {
+                $leaveApplication->deleteDocument();
+                $leaveApplication->document_path = $leaveApplication->saveDocument($request->file('document'));
             }
 
-            $status = $leaveApplication->delete();
-
-            if (!$status) {
-                return response()->json(["message" => __("Failed to delete")])->setStatusCode(400);
+            if (!$leaveApplication->save()) {
+                return $this->errorResponse(__("Failed to update"), 400);
             }
 
-            return response()->json(["message" => __("Deleted successfully")])->setStatusCode(200);
+            return $this->successResponse(__("Updated successfully"));
+
         } catch (\Exception $e) {
-            Log::error('Error in delete leave application: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'An error occurred: ' . $e->getMessage()
-            ], 500);
+            return $this->logAndReturnError('Error in update leave application', $e);
         }
     }
 
-    /**
-     * Approve leave application.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
+    // PERBAIKAN UTAMA: Ganti method delete untuk menangani DELETE request
+    public function delete(Request $request): JsonResponse
+    {
+        try {
+            // Untuk DELETE request, parameter biasanya dikirim lewat query string atau route parameter
+            // Tapi karena AJAX mengirim dalam body, kita tetap ambil dari request body
+            $id = $request->input('id');
+            
+            if (!$id) {
+                return $this->errorResponse(__("ID is required"), 400);
+            }
+            
+            $leaveApplication = LeaveApplication::find($id);
+
+            if (!$leaveApplication) {
+                return $this->errorResponse(__("Not found."), 404);
+            }
+
+            if (!$leaveApplication->canBeModified()) {
+                return $this->errorResponse(__("Cannot delete processed application"), 400);
+            }
+
+            // Hapus document jika ada sebelum soft delete
+            $leaveApplication->deleteDocument();
+            
+            // Soft delete - data tidak benar-benar dihapus dari database
+            if (!$leaveApplication->delete()) {
+                return $this->errorResponse(__("Failed to delete"), 400);
+            }
+
+            return $this->successResponse(__("Deleted successfully"));
+
+        } catch (\Exception $e) {
+            return $this->logAndReturnError('Error in delete leave application', $e);
+        }
+    }
+
     public function approve(Request $request): JsonResponse
     {
-        try {
-            $validated = $request->validate([
-                'id' => 'required|integer'
-            ]);
+        return $this->processApplication($request, 'approved', __("Application approved successfully"));
+    }
 
+    public function reject(Request $request): JsonResponse
+    {
+        return $this->processApplication($request, 'rejected', __("Application rejected successfully"));
+    }
+
+    // Private Helper Methods
+    private function validateLeaveApplication(Request $request, bool $isUpdate = false): array
+    {
+        $rules = [
+            'name' => 'required|string|max:255',
+            'employee_id' => 'required|string|max:255',
+            'application_date' => 'required|date',
+            'leave_type' => 'required|string',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'total_days' => 'required|integer|min:1',
+            'description' => 'required|string',
+            'document' => 'nullable|file|mimes:pdf|max:5120',
+        ];
+
+        if ($isUpdate) {
+            $rules['id'] = 'required|integer';
+        } else {
+            $rules['code'] = 'required|string|unique:leave_applications,code';
+        }
+
+        return $request->validate($rules);
+    }
+
+    private function buildActionButtons($data): string
+    {
+        $buttons = [];
+        
+        // Hanya tampilkan Edit dan Delete jika status masih pending
+        if ($data->canBeModified()) {
+            $buttons[] = "<button class='edit btn btn-success btn-sm m-1' data-id='{$data->id}'><i class='fas fa-pen'></i> " . __("Edit") . "</button>";
+            $buttons[] = "<button class='delete btn btn-danger btn-sm m-1' data-id='{$data->id}'><i class='fas fa-trash'></i> " . __("Delete") . "</button>";
+        }
+        
+        // Detail button selalu ada
+        $buttons[] = "<button class='detail btn btn-info btn-sm m-1' data-id='{$data->id}'><i class='fas fa-eye'></i> " . __("Detail") . "</button>";
+
+        // Document button jika ada document
+        if ($data->document_path) {
+            $documentUrl = asset('storage/' . $data->document_path);
+            $buttons[] = "<a href='{$documentUrl}' target='_blank' class='btn btn-secondary btn-sm m-1'><i class='fas fa-file-pdf'></i> " . __("View Document") . "</a>";
+        }
+
+        return implode('', $buttons);
+    }
+
+    private function processApplication(Request $request, string $status, string $message): JsonResponse
+    {
+        try {
+            $validated = $request->validate(['id' => 'required|integer']);
+            
             $leaveApplication = LeaveApplication::find($validated['id']);
 
             if (!$leaveApplication) {
-                return response()->json(["message" => __("Not found.")], 404);
+                return $this->errorResponse(__("Not found."), 404);
             }
 
             if ($leaveApplication->status !== 'pending') {
-                return response()->json(["message" => __("Application already processed")])->setStatusCode(400);
+                return $this->errorResponse(__("Application already processed"), 400);
             }
 
-            $leaveApplication->status = 'approved';
-            $leaveApplication->approved_by = Auth::id();
-            $leaveApplication->approved_at = now();
-            $leaveApplication->save();
+            $leaveApplication->update([
+                'status' => $status,
+                'approved_by' => Auth::id(),
+                'approved_at' => now()
+            ]);
 
-            return response()->json(["message" => __("Application approved successfully")])->setStatusCode(200);
+            return $this->successResponse($message);
+
         } catch (\Exception $e) {
-            Log::error('Error in approve leave application: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'An error occurred: ' . $e->getMessage()
-            ], 500);
+            return $this->logAndReturnError("Error in {$status} leave application", $e);
         }
     }
 
-    /**
-     * Reject leave application.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function reject(Request $request): JsonResponse
+    private function successResponse(string $message): JsonResponse
     {
-        try {
-            $validated = $request->validate([
-                'id' => 'required|integer'
-            ]);
+        return response()->json(["message" => $message]);
+    }
 
-            $leaveApplication = LeaveApplication::find($validated['id']);
+    private function errorResponse(string $message, int $code = 500): JsonResponse
+    {
+        return response()->json(["message" => $message], $code);
+    }
 
-            if (!$leaveApplication) {
-                return response()->json(["message" => __("Not found.")], 404);
-            }
-
-            if ($leaveApplication->status !== 'pending') {
-                return response()->json(["message" => __("Application already processed")])->setStatusCode(400);
-            }
-
-            $leaveApplication->status = 'rejected';
-            $leaveApplication->approved_by = Auth::id();
-            $leaveApplication->approved_at = now();
-            $leaveApplication->save();
-
-            return response()->json(["message" => __("Application rejected successfully")])->setStatusCode(200);
-        } catch (\Exception $e) {
-            Log::error('Error in reject leave application: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'An error occurred: ' . $e->getMessage()
-            ], 500);
-        }
+    private function logAndReturnError(string $context, \Exception $e): JsonResponse
+    {
+        Log::error("{$context}: " . $e->getMessage());
+        return $this->errorResponse('An error occurred: ' . $e->getMessage(), 500);
     }
 }

@@ -222,13 +222,13 @@ Route::middleware(['auth'])->group(function () {
     
    
     // Routes untuk Transaksi Masuk
-    Route::prefix('transaksi-masuk')->group(function () {
-        Route::get('/', [TransactionInController::class, 'index'])->name('transaksi.masuk.index');
-        Route::get('/list', [TransactionInController::class, 'list'])->name('transaksi.masuk.list');
-        Route::post('/save', [TransactionInController::class, 'save'])->name('transaksi.masuk.save');
-        Route::post('/detail', [TransactionInController::class, 'detail'])->name('transaksi.masuk.detail');
-        Route::put('/update', [TransactionInController::class, 'update'])->name('transaksi.masuk.update');
-        Route::delete('/delete', [TransactionInController::class, 'delete'])->name('transaksi.masuk.delete');
+   Route::prefix('transaksi-masuk')->group(function () {
+    Route::get('/', [TransactionInController::class, 'index'])->name('transaksi.masuk.index');
+    Route::get('/list', [TransactionInController::class, 'list'])->name('transaksi.masuk.list');
+    Route::post('/save', [TransactionInController::class, 'save'])->name('transaksi.masuk.save');
+    Route::post('/detail', [TransactionInController::class, 'detail'])->name('transaksi.masuk.detail');
+    Route::put('/update', [TransactionInController::class, 'update'])->name('transaksi.masuk.update');
+    Route::delete('/delete', [TransactionInController::class, 'delete'])->name('transaksi.masuk.delete');
     });
     
 });

@@ -5,41 +5,32 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
 class LeaveApplication extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
-    // Using English table name
     protected $table = 'leave_applications';
-    
-    // Fillable columns for mass-assignment
+   
     protected $fillable = [
-        'code',
-        'name',
-        'employee_id',
-        'application_date',
-        'leave_type',
-        'start_date',
-        'end_date',
-        'total_days',
-        'description',
-        'status',
-        'document_path',
-        'user_id',
-        'approved_by',
-        'approved_at',
-        'catatan_validator', //validation cuti
+        'code', 'name', 'employee_id', 'application_date', 'leave_type',
+        'start_date', 'end_date', 'total_days', 'description', 'status',
+        'document_path', 'user_id', 'approved_by', 'approved_at', 'catatan_validator'
     ];
 
-    // Convert column data types to appropriate formats
     protected $casts = [
         'application_date' => 'date',
         'start_date' => 'date',
         'end_date' => 'date',
         'approved_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
+
+    protected $dates = ['deleted_at'];
+
+    // Relationships
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
@@ -50,92 +41,73 @@ class LeaveApplication extends Model
         return $this->belongsTo(User::class, 'approved_by');
     }
 
-    /**
-     * Calculate total days based on start and end dates
-     */
-    public function calculateTotalDays()
+    // Business Logic Methods
+    public function calculateTotalDays(): int
     {
         if ($this->start_date && $this->end_date) {
-            $start = new \DateTime($this->start_date);
-            $end = new \DateTime($this->end_date);
-            $diff = $start->diff($end);
-            return $diff->days + 1; // Total days including first day
+            return $this->start_date->diffInDays($this->end_date) + 1;
         }
-
         return 0;
     }
 
-    /**
-     * Save document file when leave application is submitted
-     *
-     * @param \Illuminate\Http\UploadedFile|null $file
-     * @return string|null
-     */
-    public function saveDocument($file)
+    public function saveDocument($file): ?string
     {
-        if ($file) {
-            return $file->store('leave_documents', 'public');
-        }
-
-        return null;
+        return $file ? $file->store('leave_documents', 'public') : null;
     }
 
-    /**
-     * Delete document file associated with leave application
-     *
-     * @return void
-     */
-    public function deleteDocument()
+    public function deleteDocument(): void
     {
         if ($this->document_path && Storage::disk('public')->exists($this->document_path)) {
             Storage::disk('public')->delete($this->document_path);
         }
     }
 
-    /**
-     * Get the status label with proper styling
-     */
-    public function getStatusLabelAttribute()
+    public function canBeModified(): bool
     {
-        $statusLabels = [
+        return $this->status === 'pending';
+    }
+
+    // Accessors
+    public function getStatusLabelAttribute(): string
+    {
+        $labels = [
             'pending' => '<span class="badge badge-warning">Pending</span>',
             'approved' => '<span class="badge badge-success">Approved</span>',
             'rejected' => '<span class="badge badge-danger">Rejected</span>',
-            'processed' => '<span class="badge badge-info">Processed</span>', // TAMBAHAN: Status processed
+            'processed' => '<span class="badge badge-info">Processed</span>',
         ];
-
-        return $statusLabels[$this->status] ?? '<span class="badge badge-secondary">Unknown</span>';
+        
+        return $labels[$this->status] ?? '<span class="badge badge-secondary">Unknown</span>';
     }
 
-    /**
-     * Scope untuk filter berdasarkan status
-     */
-    public function scopeByStatus($query, $status)
+    // Scopes
+    public function scopeByStatus($query, string $status)
     {
         return $query->where('status', $status);
     }
 
-    /**
-     * Scope untuk filter berdasarkan user
-     */
-    public function scopeByUser($query, $userId)
+    public function scopeByUser($query, int $userId)
     {
         return $query->where('user_id', $userId);
     }
 
-    /**
-     * Scope untuk filter yang perlu validasi admin
-     */
     public function scopePendingValidation($query)
     {
         return $query->where('status', 'pending');
     }
 
-    /**
-     * Scope untuk filter yang sudah divalidasi
-     */
     public function scopeValidated($query)
     {
         return $query->whereIn('status', ['approved', 'rejected', 'processed']);
+    }
+
+    public function scopeWithTrashed($query)
+    {
+        return $query->withTrashed();
+    }
+
+    public function scopeOnlyTrashed($query)
+    {
+        return $query->onlyTrashed();
     }
 }

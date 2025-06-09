@@ -481,58 +481,59 @@ $('#save').on('click', function() {
         });
 
         // Event handler for delete button
-        $(document).on("click", ".delete", function() {
-            let id = $(this).data('id');
-            const swalWithBootstrapButtons = Swal.mixin({
-                customClass: {
-                    confirmButton: "btn btn-success m-1",
-                    cancelButton: "btn btn-danger m-1"
+       $(document).on("click", ".delete", function() {
+    let id = $(this).data('id');
+    const swalWithBootstrapButtons = Swal.mixin({
+        customClass: {
+            confirmButton: "btn btn-success m-1",
+            cancelButton: "btn btn-danger m-1"
+        },
+        buttonsStyling: false
+    });
+    swalWithBootstrapButtons.fire({
+        title: "{{__('Are you sure?')}}",
+        text: "{{__('This data will be deleted')}}",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "{{__('Yes, Delete')}}",
+        cancelButtonText: "{{__('No, Cancel!')}}",
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: "{{route('leave-application.delete')}}",
+                type: "POST", // PERBAIKAN: Ganti dari "delete" ke "POST"
+                data: {
+                    id: id,
+                    _token: $('meta[name="csrf-token"]').attr('content') // Pastikan CSRF token ada
                 },
-                buttonsStyling: false
-            });
-            swalWithBootstrapButtons.fire({
-                title: "{{__('Are you sure?')}}",
-                text: "{{__('This data will be deleted')}}",
-                icon: "warning",
-                showCancelButton: true,
-                confirmButtonText: "{{__('Yes, Delete')}}",
-                cancelButtonText: "{{__('No, Cancel!')}}",
-                reverseButtons: true
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: "{{route('leave-application.delete')}}",
-                        type: "delete",
-                        data: {
-                            id: id
-                        },
-                        success: function(res) {
-                            Swal.fire({
-                                position: "center",
-                                icon: "success",
-                                title: res.message,
-                                showConfirmButton: false,
-                                timer: 1500
-                            });
-                            $('#data-table').DataTable().ajax.reload();
-                        },
-                        error: function(xhr) {
-                            let message = "{{__('An error occurred while deleting data')}}";
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
-                                message = xhr.responseJSON.message;
-                            }
-                            Swal.fire({
-                                position: "center",
-                                icon: "error",
-                                title: "{{__('Failed!')}}",
-                                text: message,
-                                showConfirmButton: true
-                            });
-                        }
+                success: function(res) {
+                    Swal.fire({
+                        position: "center",
+                        icon: "success",
+                        title: res.message,
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+                    $('#data-table').DataTable().ajax.reload();
+                },
+                error: function(xhr) {
+                    let message = "{{__('An error occurred while deleting data')}}";
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        message = xhr.responseJSON.message;
+                    }
+                    Swal.fire({
+                        position: "center",
+                        icon: "error",
+                        title: "{{__('Failed!')}}",
+                        text: message,
+                        showConfirmButton: true
                     });
                 }
             });
-        });
+        }
+    });
+});
 
         // PERBAIKAN di file blade - Event handler for detail button
 

@@ -6,11 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Log;
 
 class Item extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
     
     protected $table = 'items';
     
@@ -27,8 +28,10 @@ class Item extends Model
 
     protected $casts = [
         'quantity' => 'decimal:2',
-        'active' => 'string', // Sesuai controller menggunakan string 'true'/'false'
+        'active' => 'string',
     ];
+
+    protected $dates = ['deleted_at'];
 
     /**
      * Relasi ke Category
@@ -72,15 +75,11 @@ class Item extends Model
 
     /**
      * Method untuk menghitung current stock berdasarkan transaksi
-     * Sesuai dengan calculateCurrentStock di controller
      */
     public function getCurrentStockAttribute()
     {
         try {
-            // Total barang masuk
             $totalIn = $this->goodsIns()->sum('quantity') ?? 0;
-            
-            // Total barang keluar (jika ada tabel goods_out)
             $totalOut = 0;
             if (class_exists('App\Models\GoodsOut')) {
                 $totalOut = $this->goodsOuts()->sum('quantity') ?? 0;
@@ -90,14 +89,12 @@ class Item extends Model
             
         } catch (\Exception $e) {
             Log::error('Error calculating stock for item ' . $this->id . ': ' . $e->getMessage());
-            // Fallback ke quantity di tabel items
             return $this->quantity ?? 0;
         }
     }
 
     /**
      * Method untuk mendapatkan formatted quantity dengan unit
-     * Sesuai dengan yang digunakan di controller
      */
     public function getFormattedCurrentStockAttribute()
     {
@@ -169,13 +166,11 @@ class Item extends Model
 
     /**
      * Method untuk mendapatkan stock movements
-     * Sesuai dengan getStockMovements di controller
      */
     public function getStockMovements()
     {
         $movements = [];
         
-        // Ambil transaksi masuk
         $goodsIn = $this->goodsIns()
             ->with('supplier', 'user')
             ->orderBy('date_received', 'desc')
@@ -192,7 +187,6 @@ class Item extends Model
             ];
         }
 
-        // Jika ada transaksi keluar
         if (class_exists('App\Models\GoodsOut')) {
             $goodsOut = $this->goodsOuts()
                 ->with('user')
@@ -211,7 +205,6 @@ class Item extends Model
             }
         }
 
-        // Sort by date descending
         usort($movements, function($a, $b) {
             return strtotime($b['date']) - strtotime($a['date']);
         });

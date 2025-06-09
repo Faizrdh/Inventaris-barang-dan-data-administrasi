@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Letter extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'code',
@@ -21,7 +22,7 @@ class Letter extends Model
         'file_type',
         'category_letter_id',
         'sender_letter_id',
-        'from_department',  // Ditambahkan field baru
+        'from_department',
         'user_id'
     ];
 
@@ -29,7 +30,10 @@ class Letter extends Model
         'date_received' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
+
+    protected $dates = ['deleted_at'];
 
     /**
      * Relasi ke CategoryLetter
