@@ -103,68 +103,6 @@
 <x-data-table/>
 
 <style>
-.status-dropdown {
-    border-radius: 6px;
-    border: 2px solid;
-    font-size: 0.875rem;
-    font-weight: 500;
-    transition: all 0.3s ease-in-out;
-    cursor: pointer;
-}
-
-.colored-dropdown {
-    background-color: #fff3cd !important;
-    border-color: #ffeaa7 !important;
-    color: #856404 !important;
-}
-
-.status-dropdown:focus {
-    outline: 0;
-    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
-    border-color: #ffc107;
-}
-
-.status-dropdown:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-/* Styling untuk option elements */
-.status-dropdown option {
-    padding: 8px 12px;
-    font-weight: 500;
-    border-radius: 4px;
-    margin: 2px 0;
-}
-
-/* Pending - Kuning */
-.status-dropdown option[value="pending"] {
-    background-color: #fff3cd !important;
-    color: #856404 !important;
-    border-left: 4px solid #ffc107;
-}
-
-/* Approve - Hijau */
-.status-dropdown option[value="approved"] {
-    background-color: #d4edda !important;
-    color: #155724 !important;
-    border-left: 4px solid #28a745;
-}
-
-/* Reject - Merah */
-.status-dropdown option[value="rejected"] {
-    background-color: #f8d7da !important;
-    color: #721c24 !important;
-    border-left: 4px solid #dc3545;
-}
-
-/* Process - Biru */
-.status-dropdown option[value="processed"] {
-    background-color: #d1ecf1 !important;
-    color: #0c5460 !important;
-    border-left: 4px solid #17a2b8;
-}
-
 /* Enhanced badge styling */
 .badge {
     font-size: 0.875rem;
@@ -196,7 +134,17 @@
     }
 }
 
-/* Animation untuk perubahan status */
+/* Button hover effects */
+.btn {
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* Status changing animation */
 .status-changing {
     animation: statusChange 0.3s ease-in-out;
 }
@@ -212,58 +160,6 @@
     100% {
         transform: scale(1);
     }
-}
-
-/* Pulse animation untuk pending status */
-.colored-dropdown {
-    animation: pendingPulse 2s infinite;
-}
-
-@keyframes pendingPulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4);
-    }
-    70% {
-        box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
-    }
-}
-
-/* Responsive dropdown */
-@media (max-width: 768px) {
-    .status-dropdown {
-        width: 120px !important;
-        font-size: 0.8rem;
-    }
-}
-
-/* Tooltip style for dropdown */
-.status-dropdown {
-    position: relative;
-}
-
-.status-dropdown::after {
-    content: 'Click to change status';
-    position: absolute;
-    bottom: -25px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0,0,0,0.8);
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    opacity: 0;
-    transition: opacity 0.3s;
-    pointer-events: none;
-    white-space: nowrap;
-    z-index: 1000;
-}
-
-.status-dropdown:hover::after {
-    opacity: 1;
 }
 </style>
 
@@ -343,81 +239,26 @@
                     searchable: false
                 }
             ],
-            order: [[0, 'desc']],
-            drawCallback: function() {
-                // Re-bind event handlers after table redraw
-                bindStatusDropdownEvents();
-            }
+            order: [[0, 'desc']]
         });
 
-        // Function to bind status dropdown events
-        function bindStatusDropdownEvents() {
-            $('.status-dropdown').off('change').on('change', function() {
-                const leaveId = $(this).data('id');
-                const newStatus = $(this).val();
-                const currentStatus = 'pending';
-                const dropdown = $(this);
-                
-                // Update dropdown appearance based on selection
-                updateDropdownStyle(dropdown, newStatus);
-                
-                if (newStatus !== 'pending') {
-                    // Show confirmation modal
-                    showStatusChangeModal(leaveId, newStatus);
-                    
-                    // Reset dropdown to pending with a slight delay for visual feedback
-                    setTimeout(() => {
-                        dropdown.val('pending');
-                        updateDropdownStyle(dropdown, 'pending');
-                    }, 200);
-                }
-            });
+        // Event handler for approve button
+        $(document).on("click", ".approve", function() {
+            const leaveId = $(this).data('id');
+            showStatusChangeModal(leaveId, 'approved');
+        });
 
-            // Add hover effects
-            $('.status-dropdown').off('mouseenter mouseleave')
-                .on('mouseenter', function() {
-                    $(this).css('transform', 'translateY(-1px)');
-                })
-                .on('mouseleave', function() {
-                    $(this).css('transform', 'translateY(0)');
-                });
-        }
+        // Event handler for reject button
+        $(document).on("click", ".reject", function() {
+            const leaveId = $(this).data('id');
+            showStatusChangeModal(leaveId, 'rejected');
+        });
 
-        // Function to update dropdown styling based on selected value
-        function updateDropdownStyle(dropdown, status) {
-            const styles = {
-                'pending': {
-                    'background-color': '#fff3cd',
-                    'border-color': '#ffeaa7',
-                    'color': '#856404'
-                },
-                'approved': {
-                    'background-color': '#d4edda',
-                    'border-color': '#c3e6cb',
-                    'color': '#155724'
-                },
-                'rejected': {
-                    'background-color': '#f8d7da',
-                    'border-color': '#f5c6cb',
-                    'color': '#721c24'
-                },
-                'processed': {
-                    'background-color': '#d1ecf1',
-                    'border-color': '#bee5eb',
-                    'color': '#0c5460'
-                }
-            };
-            
-            if (styles[status]) {
-                dropdown.css(styles[status]);
-                
-                // Add a subtle animation
-                dropdown.addClass('status-changing');
-                setTimeout(() => {
-                    dropdown.removeClass('status-changing');
-                }, 300);
-            }
-        }
+        // Event handler for process button
+        $(document).on("click", ".process", function() {
+            const leaveId = $(this).data('id');
+            showStatusChangeModal(leaveId, 'processed');
+        });
 
         // Function to show status change modal
         function showStatusChangeModal(leaveId, newStatus) {
@@ -520,6 +361,14 @@
                         });
                         $('#StatusChangeModal').modal('hide');
                         table.ajax.reload();
+                    } else {
+                        Swal.fire({
+                            position: "center",
+                            icon: "error",
+                            title: "{{__('Failed!')}}",
+                            text: response.message || "{{__('An error occurred')}}",
+                            showConfirmButton: true
+                        });
                     }
                 },
                 error: function(xhr) {
@@ -538,6 +387,18 @@
                 complete: function() {
                     // Reset button state
                     $('#confirm-status-change').prop('disabled', false);
+                    const newStatus = $('#new_status').val();
+                    const statusMessages = {
+                        'approved': { buttonClass: 'btn-success', buttonText: '{{__("Approve Application")}}' },
+                        'rejected': { buttonClass: 'btn-danger', buttonText: '{{__("Reject Application")}}' },
+                        'processed': { buttonClass: 'btn-warning', buttonText: '{{__("Set as Processing")}}' }
+                    };
+                    const config = statusMessages[newStatus];
+                    if (config) {
+                        $('#confirm-status-change').removeClass('btn-primary btn-success btn-danger btn-warning')
+                                                   .addClass(config.buttonClass)
+                                                   .text(config.buttonText);
+                    }
                 }
             });
         });
@@ -577,6 +438,7 @@
                                     <p><strong>{{__('Code')}}:</strong> ${data.code}</p>
                                     <p><strong>{{__('Employee Name')}}:</strong> ${data.name}</p>
                                     <p><strong>{{__('Employee ID')}}:</strong> ${data.employee_id}</p>
+                                    <p><strong>{{__('Email')}}:</strong> ${data.email || 'N/A'}</p>
                                     <p><strong>{{__('Application Date')}}:</strong> ${new Date(data.application_date).toLocaleDateString()}</p>
                                     <p><strong>{{__('Leave Type')}}:</strong> ${data.leave_type}</p>
                                     <p><strong>{{__('Status')}}:</strong> <span class="badge badge-${data.status === 'approved' ? 'success' : data.status === 'rejected' ? 'danger' : data.status === 'processed' ? 'info' : 'warning'}">${data.status}</span></p>
@@ -596,6 +458,14 @@
                             </div>
                         `);
                         $('#DetailModal').modal('show');
+                    } else {
+                        Swal.fire({
+                            position: "center",
+                            icon: "error",
+                            title: "{{__('Failed!')}}",
+                            text: response.message || "{{__('Failed to fetch data')}}",
+                            showConfirmButton: true
+                        });
                     }
                 },
                 error: function(xhr) {
@@ -620,9 +490,6 @@
             $('#confirm-status-change').removeClass('btn-success btn-danger btn-warning').addClass('btn-primary').text('{{__("Confirm Change")}}');
             $('#required-indicator').hide();
         });
-
-        // Initial binding for existing dropdowns
-        bindStatusDropdownEvents();
     });
 </script>
 @endsection

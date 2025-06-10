@@ -9,6 +9,8 @@ use Yajra\DataTables\DataTables;
 use App\Models\LeaveApplication;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\NewLeaveApplicationMail;
 
 class LeaveApplicationController extends Controller
 {
@@ -41,28 +43,59 @@ class LeaveApplicationController extends Controller
     }
 
     public function save(Request $request): JsonResponse
-    {
-        try {
-            $validated = $this->validateLeaveApplication($request);
-            
-            $leaveApplication = new LeaveApplication($validated);
-            $leaveApplication->status = 'pending';
-            $leaveApplication->user_id = Auth::id();
+{
+    try {
+        $validated = $this->validateLeaveApplication($request);
+        
+        $leaveApplication = new LeaveApplication($validated);
+        $leaveApplication->status = 'pending';
+        $leaveApplication->user_id = Auth::id();
 
-            if ($request->hasFile('document')) {
-                $leaveApplication->document_path = $leaveApplication->saveDocument($request->file('document'));
-            }
-
-            if (!$leaveApplication->save()) {
-                return $this->errorResponse(__("Failed to save"), 400);
-            }
-
-            return $this->successResponse(__("Saved successfully"));
-
-        } catch (\Exception $e) {
-            return $this->logAndReturnError('Error in save leave application', $e);
+        if ($request->hasFile('document')) {
+            $leaveApplication->document_path = $leaveApplication->saveDocument($request->file('document'));
         }
+
+        if (!$leaveApplication->save()) {
+            return $this->errorResponse(__("Failed to save"), 400);
+        }
+
+        // Kirim email ke supervisor dengan validasi yang lebih baik
+        $this->sendEmailToSupervisor($leaveApplication);
+
+        return $this->successResponse(__("Saved successfully"));
+
+    } catch (\Exception $e) {
+        return $this->logAndReturnError('Error in save leave application', $e);
     }
+}
+
+// Method terpisah untuk mengirim email ke supervisor
+private function sendEmailToSupervisor(LeaveApplication $leaveApplication): void
+{
+    try {
+        $supervisorEmail = env('SUPERVISOR_EMAIL');
+        
+        if (!$supervisorEmail) {
+            Log::warning('SUPERVISOR_EMAIL not configured in .env file');
+            return;
+        }
+
+        if (!filter_var($supervisorEmail, FILTER_VALIDATE_EMAIL)) {
+            Log::error('Invalid SUPERVISOR_EMAIL format: ' . $supervisorEmail);
+            return;
+        }
+
+        Mail::to($supervisorEmail)->send(new NewLeaveApplicationMail($leaveApplication));
+        Log::info('Email sent successfully to supervisor: ' . $supervisorEmail . ' for application: ' . $leaveApplication->code);
+        
+    } catch (\Exception $e) {
+        Log::error('Failed to send email to supervisor: ' . $e->getMessage(), [
+            'application_id' => $leaveApplication->id,
+            'application_code' => $leaveApplication->code,
+            'supervisor_email' => $supervisorEmail ?? 'not set'
+        ]);
+    }
+}
 
     public function detail(Request $request): JsonResponse
     {
@@ -115,12 +148,9 @@ class LeaveApplicationController extends Controller
         }
     }
 
-    // PERBAIKAN UTAMA: Ganti method delete untuk menangani DELETE request
     public function delete(Request $request): JsonResponse
     {
         try {
-            // Untuk DELETE request, parameter biasanya dikirim lewat query string atau route parameter
-            // Tapi karena AJAX mengirim dalam body, kita tetap ambil dari request body
             $id = $request->input('id');
             
             if (!$id) {
@@ -137,10 +167,8 @@ class LeaveApplicationController extends Controller
                 return $this->errorResponse(__("Cannot delete processed application"), 400);
             }
 
-            // Hapus document jika ada sebelum soft delete
             $leaveApplication->deleteDocument();
             
-            // Soft delete - data tidak benar-benar dihapus dari database
             if (!$leaveApplication->delete()) {
                 return $this->errorResponse(__("Failed to delete"), 400);
             }
@@ -162,12 +190,13 @@ class LeaveApplicationController extends Controller
         return $this->processApplication($request, 'rejected', __("Application rejected successfully"));
     }
 
-    // Private Helper Methods
+    // PERBAIKAN: Hapus duplikasi method validateLeaveApplication
     private function validateLeaveApplication(Request $request, bool $isUpdate = false): array
     {
         $rules = [
             'name' => 'required|string|max:255',
             'employee_id' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
             'application_date' => 'required|date',
             'leave_type' => 'required|string',
             'start_date' => 'required|date',
@@ -190,16 +219,13 @@ class LeaveApplicationController extends Controller
     {
         $buttons = [];
         
-        // Hanya tampilkan Edit dan Delete jika status masih pending
         if ($data->canBeModified()) {
             $buttons[] = "<button class='edit btn btn-success btn-sm m-1' data-id='{$data->id}'><i class='fas fa-pen'></i> " . __("Edit") . "</button>";
             $buttons[] = "<button class='delete btn btn-danger btn-sm m-1' data-id='{$data->id}'><i class='fas fa-trash'></i> " . __("Delete") . "</button>";
         }
         
-        // Detail button selalu ada
         $buttons[] = "<button class='detail btn btn-info btn-sm m-1' data-id='{$data->id}'><i class='fas fa-eye'></i> " . __("Detail") . "</button>";
 
-        // Document button jika ada document
         if ($data->document_path) {
             $documentUrl = asset('storage/' . $data->document_path);
             $buttons[] = "<a href='{$documentUrl}' target='_blank' class='btn btn-secondary btn-sm m-1'><i class='fas fa-file-pdf'></i> " . __("View Document") . "</a>";

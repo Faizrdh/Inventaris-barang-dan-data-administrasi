@@ -207,7 +207,6 @@ Route::middleware(['auth', "localization"])->group(function(){
     });
 
     //route Cuti 
-    // Leave Application Routes 
     Route::prefix('leave-application')->name('leave-application.')->group(function () {
         Route::get('/', [LeaveApplicationController::class, 'index'])->name('index');
         Route::get('/list', [LeaveApplicationController::class, 'list'])->name('list');
