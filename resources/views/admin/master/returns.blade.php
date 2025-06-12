@@ -95,7 +95,7 @@
                                     </div>
                                     
                                     <div class="form-group mb-3">
-                                        <label for="return_date">{{__('return date')}}</label>
+                                        <label for="return_date">{{__('Tanggal Pengembalian')}}</label>
                                         <input type="date" class="form-control" id="return_date" name="return_date" 
                                             value="{{ isset($return) ? $return->return_date : (old('return_date') ?: date('Y-m-d')) }}" required>
                                     </div>
@@ -128,9 +128,9 @@
                             <thead>
                                 <tr>
                                     <th class="border-bottom-0" width="4%">No</th>
-                                    <th class="border-bottom-0">{{__('borrower name')}}</th>
+                                    <th class="border-bottom-0">{{__('Nama Peminjam')}}</th>
                                     <th class="border-bottom-0">{{__('item code')}}</th>
-                                    <th class="border-bottom-0">{{__('return date')}}</th>
+                                    <th class="border-bottom-0">{{__('Tanggal pengembalian')}}</th>
                                     <th class="border-bottom-0">{{__('item status')}}</th>
                                     @if(Auth::user()->role->name != 'staff')
                                         <th class="border-bottom-0" width="15%">{{__('action')}}</th>

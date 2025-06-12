@@ -182,12 +182,12 @@ private function sendEmailToSupervisor(LeaveApplication $leaveApplication): void
 
     public function approve(Request $request): JsonResponse
     {
-        return $this->processApplication($request, 'approved', __("Application approved successfully"));
+        return $this->processApplication($request, 'approved', __("Cuti berhasil disetujui"));
     }
 
     public function reject(Request $request): JsonResponse
     {
-        return $this->processApplication($request, 'rejected', __("Application rejected successfully"));
+        return $this->processApplication($request, 'rejected', __("Cuti berhasil di tolak"));
     }
 
     // PERBAIKAN: Hapus duplikasi method validateLeaveApplication

@@ -238,7 +238,7 @@ class LeaveValidationController extends Controller
 
             return response()->json([
                 "success" => true,
-                "message" => __("Leave application rejected successfully")
+                "message" => __("Pengajuan cuti berhasil di setujui")
             ])->setStatusCode(200);
             
         } catch (\Exception $e) {

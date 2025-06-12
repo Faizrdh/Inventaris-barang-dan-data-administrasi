@@ -66,9 +66,9 @@
                                         </select>
                                     </div>
                                     <div class="form-group">
-                                        <label for="jumlah" class="form-label">{{ __("initial amount") }}</label>
+                                        <label for="jumlah" class="form-label">{{ __("Stok awal") }}</label>
                                         <input type="number" value="0" name="jumlah" class="form-control" min="0">
-                                        <small class="form-text text-muted">{{ __("Enter initial stock quantity") }}</small>
+                                        <small class="form-text text-muted">{{ __("Masukan Stok Awal") }}</small>
                                     </div>
                                 </div>
                                 <div class="col-md-5">

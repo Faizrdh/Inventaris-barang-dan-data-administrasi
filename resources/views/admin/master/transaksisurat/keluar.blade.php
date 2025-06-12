@@ -56,106 +56,143 @@
 
                 <!-- Modal Input/Edit -->
                 <div class="modal fade" id="TambahData" tabindex="-1" aria-labelledby="TambahDataModalLabel" aria-hidden="true">
-                    <div class="modal-dialog modal-xl modal-dialog-centered">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="TambahDataModalLabel">{{__('create outgoing letter')}}</h5>
-                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                    <span aria-hidden="true">&times;</span>
-                                </button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="sent_date" class="form-label">{{__('tanggal keluar')}} <span class="text-danger">*</span></label>
-                                            <input type="date" name="sent_date" class="form-control">
-                                            <input type="hidden" name="id"/>
-                                            <input type="hidden" name="letter_id"/>
-                                            <input type="hidden" name="file_name"/>
-                                            <input type="hidden" name="file_path"/>
-                                            <input type="hidden" name="file_size"/>
-                                            <input type="hidden" name="file_type"/>
-                                        </div>
-                                        
-                                        <div class="form-group">
-                                            <label for="letter_code" class="form-label">{{__('Nomor surat')}} <span class="text-danger">*</span></label>
-                                            <div class="input-group">
-                                                <input type="text" name="letter_code" class="form-control" placeholder="Nomor surat">
-                                                <div class="input-group-append">
-                                                    <button class="btn btn-outline-primary" type="button" id="cari-letter" title="Cari berdasarkan kode">
-                                                        <i class="fas fa-search"></i>
-                                                    </button>
-                                                    <button class="btn btn-success" type="button" id="pilih-letter" title="Pilih dari daftar">
-                                                        <i class="fas fa-list"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="form-group">
-                                            <label for="letter_name" class="form-label">{{__("Nama surat")}}</label>
-                                            <input type="text" name="letter_name" readonly class="form-control">
-                                        </div>
-                                        
-                                        <div class="form-group">
-                                            <label for="perihal" class="form-label">{{__('Perihal')}} <span class="text-danger">*</span></label>
-                                            <input type="text" name="perihal" class="form-control" placeholder="Perihal surat">
-                                        </div>
-
-                                        <!-- FIELD BARU: TUJUAN -->
-                                        <div class="form-group">
-                                            <label for="tujuan" class="form-label">{{__('Tujuan')}} <span class="text-danger">*</span></label>
-                                            <input type="text" name="tujuan" class="form-control" placeholder="Tujuan surat (Institusi/Departemen/Person)">
-                                        </div>
-
-                                        <!-- File Information Display -->
-                                        <div class="form-group">
-                                            <label class="form-label">{{__('File Information')}}</label>
-                                            <div id="file-info-display" class="border rounded p-3 bg-light" style="display: none;">
-                                                <div class="d-flex align-items-center mb-2">
-                                                    <i id="file-icon" class="fas fa-file text-secondary me-2"></i>
-                                                    <div class="flex-grow-1">
-                                                        <div id="file-name-display" class="font-weight-bold">-</div>
-                                                        <small id="file-size-display" class="text-muted">-</small>
-                                                    </div>
-                                                    <div class="btn-group" role="group">
-                                                        <a id="file-view-btn" href="#" target="_blank" class="btn btn-sm btn-outline-primary" style="display: none;">
-                                                            <i class="fas fa-eye"></i> View
-                                                        </a>
-                                                        <a id="file-download-btn" href="#" download class="btn btn-sm btn-outline-success" style="display: none;">
-                                                            <i class="fas fa-download"></i> Download
-                                                        </a>
-                                                    </div>
-                                                </div>
-                                                <div id="file-type-display" class="text-muted small">-</div>
-                                            </div>
-                                            <div id="no-file-display" class="text-muted text-center py-3">
-                                                <i class="fas fa-file-slash"></i> Tidak ada file
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="keterangan" class="form-label">{{__('Keterangan')}}</label>
-                                            <textarea name="keterangan" class="form-control" rows="4" placeholder="Keterangan surat"></textarea>
-                                        </div>
-                                        
-                                        <div class="form-group">
-                                            <label for="notes" class="form-label">{{__("notes")}}</label>
-                                            <textarea name="notes" class="form-control" rows="6" placeholder="Catatan tambahan"></textarea>
-                                        </div>
-                                    </div>
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="TambahDataModalLabel">{{__('Membuat data surat keluar')}}</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="sent_date" class="form-label">{{__('tanggal keluar')}} <span class="text-danger">*</span></label>
+                            <input type="date" name="sent_date" class="form-control">
+                            <input type="hidden" name="id"/>
+                            <input type="hidden" name="letter_id"/>
+                            <input type="hidden" name="file_name"/>
+                            <input type="hidden" name="file_path"/>
+                            <input type="hidden" name="file_size"/>
+                            <input type="hidden" name="file_type"/>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="letter_code" class="form-label">{{__('Nomor surat')}} <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="text" name="letter_code" class="form-control" placeholder="Nomor surat">
+                                <div class="input-group-append">
+                                    <button class="btn btn-outline-primary" type="button" id="cari-letter" title="Cari berdasarkan kode">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                    <button class="btn btn-success" type="button" id="pilih-letter" title="Pilih dari daftar">
+                                        <i class="fas fa-list"></i>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-dismiss="modal" id="kembali">{{__("cancel")}}</button>
-                                <button type="button" class="btn btn-success" id="simpan">{{__("save")}}</button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="letter_name" class="form-label">{{__("Nama surat")}}</label>
+                            <input type="text" name="letter_name" readonly class="form-control">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="perihal" class="form-label">{{__('Perihal')}} <span class="text-danger">*</span></label>
+                            <input type="text" name="perihal" class="form-control" placeholder="Perihal surat">
+                        </div>
+
+                        <!-- FIELD BARU: TUJUAN -->
+                        <div class="form-group">
+                            <label for="tujuan" class="form-label">{{__('Tujuan')}} <span class="text-danger">*</span></label>
+                            <input type="text" name="tujuan" class="form-control" placeholder="Tujuan surat (Institusi/Departemen/Person)">
+                        </div>
+
+                        <!-- File Information Display - DIKECILKAN -->
+                        <div class="form-group">
+                            <label class="form-label">{{__('File Information')}}</label>
+                            <div id="file-info-display" class="border rounded p-2 bg-light" style="display: none;">
+                                <div class="d-flex align-items-center mb-1">
+                                    <i id="file-icon" class="fas fa-file text-secondary me-2"></i>
+                                    <div class="flex-grow-1">
+                                        <div id="file-name-display" class="font-weight-bold small">-</div>
+                                        <small id="file-size-display" class="text-muted">-</small>
+                                    </div>
+                                    <div class="btn-group" role="group">
+                                        <a id="file-view-btn" href="#" target="_blank" class="btn btn-sm btn-outline-primary" style="display: none;">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a id="file-download-btn" href="#" download class="btn btn-sm btn-outline-success" style="display: none;">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div id="file-type-display" class="text-muted small">-</div>
+                            </div>
+                            <div id="no-file-display" class="text-muted text-center py-2">
+                                <i class="fas fa-file-slash"></i> Tidak ada file
                             </div>
                         </div>
                     </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="keterangan" class="form-label">{{__('Keterangan')}}</label>
+                            <textarea name="keterangan" class="form-control" rows="3" placeholder="Keterangan surat"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="notes" class="form-label">{{__("notes")}}</label>
+                            <textarea name="notes" class="form-control" rows="4" placeholder="Catatan tambahan"></textarea>
+                        </div>
+                    </div>
                 </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" id="kembali">{{__("cancel")}}</button>
+                <button type="button" class="btn btn-success" id="simpan">{{__("save")}}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Pastikan modal tidak terlalu tinggi */
+.modal-dialog-centered {
+    max-height: 90vh;
+}
+
+.modal-content {
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-body {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 70vh;
+}
+
+/* Kompak file info display */
+#file-info-display .small {
+    font-size: 0.85em;
+}
+
+/* Responsive untuk layar kecil */
+@media (max-height: 768px) {
+    .modal-body {
+        max-height: 60vh;
+    }
+}
+
+@media (max-height: 600px) {
+    .modal-body {
+        max-height: 50vh;
+    }
+}
+</style>
 
                 <div class="card-body">
                     <div class="table-responsive">
@@ -613,7 +650,7 @@
         $("#modal-button").on("click", function() {
             resetForm();
             $('#simpan').text("{{__('save')}}");
-            $('.modal-title').text("{{__('create outgoing letter')}}");
+            $('.modal-title').text("{{__('membuat surat keluar')}}");
         });
 
         // Pilih surat dari modal

@@ -69,7 +69,7 @@ class CategoryLetterController extends Controller
             }
             
             return response()->json([
-                'message' => 'Category letter saved successfully'
+                'message' => 'Berhasil menambahkan data jenis surat'
             ], 200);
             
         } catch (\Exception $e) {
@@ -94,7 +94,7 @@ class CategoryLetterController extends Controller
             
             if (!$data) {
                 return response()->json([
-                    'message' => 'Category letter not found'
+                    'message' => 'Jenis surat tidak ditemukan'
                 ], 404);
             }
             
@@ -126,7 +126,7 @@ class CategoryLetterController extends Controller
             
             if (!$data) {
                 return response()->json([
-                    'message' => 'Category letter not found'
+                    'message' => 'jenis surat tidak dapat ditemukan'
                 ], 404);
             }
             
@@ -140,7 +140,7 @@ class CategoryLetterController extends Controller
             }
             
             return response()->json([
-                'message' => 'Category letter updated successfully'
+                'message' => 'Jenis surat berhasil di perbarui'
             ], 200);
             
         } catch (\Exception $e) {
@@ -165,7 +165,7 @@ class CategoryLetterController extends Controller
             
             if (!$categoryLetter) {
                 return response()->json([
-                    'message' => 'Category letter not found'
+                    'message' => 'jenis surat tidak dapat ditemukan'
                 ], 404);
             }
             
@@ -178,7 +178,7 @@ class CategoryLetterController extends Controller
             }
             
             return response()->json([
-                'message' => 'Category letter deleted successfully'
+                'message' => 'jenis surat berhasil dihapus'
             ], 200);
             
         } catch (\Exception $e) {

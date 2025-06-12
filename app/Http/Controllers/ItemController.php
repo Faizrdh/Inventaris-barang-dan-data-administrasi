@@ -119,6 +119,8 @@ class ItemController extends Controller
         }
     }
 
+    
+
     public function detailByCode(Request $request): JsonResponse
     {
         try {
@@ -302,23 +304,31 @@ class ItemController extends Controller
         }
     }
 
-    private function calculateCurrentStock($itemId): int
-    {
-        try {
-            $totalIn = GoodsIn::where('item_id', $itemId)->sum('quantity') ?? 0;
-            $totalOut = 0;
-            if (class_exists('App\Models\GoodsOut')) {
-                $totalOut = GoodsOut::where('item_id', $itemId)->sum('quantity') ?? 0;
-            }
-            
-            return $totalIn - $totalOut;
-            
-        } catch (\Exception $e) {
-            Log::error('Error calculating stock for item ' . $itemId . ': ' . $e->getMessage());
-            $item = Item::find($itemId);
-            return $item ? $item->quantity : 0;
+   private function calculateCurrentStock($itemId): int
+{
+    try {
+        $item = Item::find($itemId);
+        if (!$item) return 0;
+        
+        // Ambil stok awal dari field quantity
+        $initialStock = $item->quantity ?? 0;
+        
+        // Hitung total transaksi masuk dan keluar
+        $totalIn = GoodsIn::where('item_id', $itemId)->sum('quantity') ?? 0;
+        $totalOut = 0;
+        if (class_exists('App\Models\GoodsOut')) {
+            $totalOut = GoodsOut::where('item_id', $itemId)->sum('quantity') ?? 0;
         }
+        
+        // Stok = Stok Awal + Total Masuk - Total Keluar
+        return $initialStock + $totalIn - $totalOut;
+        
+    } catch (\Exception $e) {
+        Log::error('Error calculating stock for item ' . $itemId . ': ' . $e->getMessage());
+        $item = Item::find($itemId);
+        return $item ? $item->quantity : 0;
     }
+}
 
     private function hasTransactions($itemId): bool
     {

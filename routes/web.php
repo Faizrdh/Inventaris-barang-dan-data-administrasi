@@ -34,6 +34,7 @@ use App\Http\Controllers\LettersOutController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportLettersOutController;
 
+
 Route::middleware(["localization"])->group(function(){
     // Jadikan LandingPage sebagai halaman utama
     Route::get('/',[LandingPageController::class,'index'])->name('landing');
@@ -48,12 +49,11 @@ Route::middleware(['auth', "localization"])->group(function(){
 
    Route::middleware(['auth'])->group(function () {
     // Notification endpoints - SUPER SIMPLE
-    Route::get('/notifications', [NotificationController::class, 'getNotifications']);
-    Route::get('/notifications/get', [NotificationController::class, 'getNotifications']); // Untuk compatibility
-    Route::post('/notifications/mark-read', [NotificationController::class, 'markAsRead']);
-    Route::get('/notifications/counts', [NotificationController::class, 'getCounts']);
-    Route::get('/notifications/summary', [NotificationController::class, 'getSummary']);
-    Route::post('/notifications/clear-read', [NotificationController::class, 'clearRead']);
+        Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'getNotifications']);
+    Route::post('/notifications/mark-read', [App\Http\Controllers\NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/cleanup-deleted', [App\Http\Controllers\NotificationController::class, 'cleanupDeletedItems']);
+    Route::get('/notifications/counts', [App\Http\Controllers\NotificationController::class, 'getCounts']);
+    Route::post('/notifications/clear-read', [App\Http\Controllers\NotificationController::class, 'clearRead']);
     
     // Test endpoint (bisa dihapus nanti)
     Route::get('/notifications/test', [NotificationController::class, 'test']);
@@ -233,16 +233,22 @@ Route::middleware(['auth'])->group(function () {
 });
 
     // Transaksi keluar
-    Route::controller(TransactionOutController::class)->prefix('/transaksi/keluar')->group(function(){
-        Route::get('/','index')->name('transaksi.keluar');
-        Route::get('/list','list')->name('transaksi.keluar.list');
-        Route::post('/simpan','save')->name('transaksi.keluar.simpan');
-        Route::post('/info','detail')->name('transaksi.keluar.info');
-        Route::put('/ubah','update')->name('transaksi.keluar.ubah');
-        Route::delete('/hapus','delete')->name('transaksi.keluar.hapus');
-        
-        Route::post('/cek-stok','getCurrentStock')->name('transaksi.keluar.cek-stok');
-    });
+   // Tambahkan route ini ke dalam file routes/web.php
+
+Route::controller(TransactionOutController::class)->prefix('/transaksi/keluar')->group(function(){
+    Route::get('/','index')->name('transaksi.keluar');
+    Route::get('/list','list')->name('transaksi.keluar.list');
+    Route::post('/simpan','save')->name('transaksi.keluar.simpan');
+    Route::post('/info','detail')->name('transaksi.keluar.info');
+    Route::put('/ubah','update')->name('transaksi.keluar.ubah');
+    Route::delete('/hapus','delete')->name('transaksi.keluar.hapus');
+    Route::post('/cek-stok','getCurrentStock')->name('transaksi.keluar.cek-stok');
+    
+    // Route stock
+    Route::get('/stock','getCurrentStock')->name('transaksi.keluar.stock');
+    Route::post('/check-stock','checkStockAvailability')->name('transaksi.keluar.check-stock');
+    Route::get('/available-items','getAvailableItems')->name('transaksi.keluar.available-items');
+});
 
     // laporan barang masuk
     Route::controller(ReportGoodsInController::class)->prefix('/laporan/masuk')->group(function(){
@@ -312,3 +318,4 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/return/{id}', [App\Http\Controllers\ReturnController::class, 'update'])->name('return.update');
     Route::delete('/return/{id}', [App\Http\Controllers\ReturnController::class, 'delete'])->name('return.delete');
 ;
+

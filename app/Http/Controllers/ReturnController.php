@@ -57,7 +57,7 @@ class ReturnController extends Controller
             // If you need to track item status, you'll need to add a migration first
 
             return redirect()->route('return.index')
-                ->with('success', 'Return data saved successfully');
+                ->with('success', 'Data pengembalian berhasil ditambahkan');
 
         } catch (\Exception $e) {
             return redirect()->back()

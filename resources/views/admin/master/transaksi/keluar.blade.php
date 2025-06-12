@@ -509,7 +509,179 @@
         });
     }
 
-    // ... (lainnya seperti processUpdate, resetForm, dll. tetap sama)
+ $(document).on("click", ".hapus", function() {
+    let id = $(this).attr('id');
+    
+    Swal.fire({
+        title: 'Apakah Anda yakin?',
+        text: "Data yang dihapus tidak dapat dikembalikan!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Ya, hapus!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Tampilkan loading
+            Swal.fire({
+                title: 'Menghapus...',
+                text: 'Mohon tunggu',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                allowEnterKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            $.ajax({
+                url: "{{route('transaksi.keluar.hapus')}}",
+                type: "DELETE", // Ubah dari POST ke DELETE sesuai routing
+                data: { 
+                    id: id, // Kirim ID melalui data karena controller menggunakan $request->id
+                    "_token": "{{csrf_token()}}" 
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        Swal.fire({
+                            position: "center",
+                            icon: "success",
+                            title: "Berhasil!",
+                            text: response.message || "Data berhasil dihapus",
+                            showConfirmButton: false,
+                            timer: 1500
+                        });
+                        
+                        // Reload DataTable
+                        $('#data-tabel').DataTable().ajax.reload();
+                    } else {
+                        Swal.fire({
+                            position: "center",
+                            icon: "error",
+                            title: "Gagal!",
+                            text: response.message || "Gagal menghapus data",
+                            showConfirmButton: true
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.log('Error:', xhr.responseText);
+                    
+                    let message = 'Terjadi kesalahan saat menghapus data';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        message = xhr.responseJSON.message;
+                    }
+                    
+                    Swal.fire({
+                        position: "center",
+                        icon: "error",
+                        title: "Error!",
+                        text: message,
+                        showConfirmButton: true
+                    });
+                }
+            });
+        }
+    });
+});
+
+function processUpdate() {
+    const id = $("input[name='id']").val();
+    const item_id = $("input[name='id_barang']").val();
+    const user_id = `{{Auth::user()->id}}`;
+    const date_out = $("input[name='tanggal_keluar']").val();
+    const customer_id = $("select[name='customer']").val();
+    const invoice_number = $("input[name='kode']").val();
+    const quantity = $("input[name='jumlah']").val();
+
+    if (!id || !item_id || !date_out || !quantity || !customer_id || !invoice_number) {
+        Swal.fire({
+            position: "center",
+            icon: "warning",
+            title: "Data Tidak Lengkap",
+            text: "Mohon lengkapi semua data terlebih dahulu",
+            showConfirmButton: true
+        });
+        return;
+    }
+
+    const Form = new FormData();
+    Form.append('id', id);
+    Form.append('user_id', user_id);
+    Form.append('item_id', item_id);
+    Form.append('date_out', date_out);
+    Form.append('quantity', quantity);
+    Form.append('customer_id', customer_id);
+    Form.append('invoice_number', invoice_number);
+    Form.append('_token', '{{csrf_token()}}');
+    Form.append('_method', 'PUT'); // Tambahkan method PUT untuk update
+
+    $.ajax({
+        url: `{{route('transaksi.keluar.ubah')}}`,
+        type: "post", // Laravel akan menggunakan PUT karena _method
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        data: Form,
+        success: function(res) {
+            Swal.fire({
+                position: "center",
+                icon: "success",
+                title: res.message,
+                showConfirmButton: false,
+                timer: 1500
+            });
+            $('#kembali').click();
+            resetForm();
+            $('#data-tabel').DataTable().ajax.reload();
+        },
+        error: function(xhr) {
+            let message = 'Error updating data';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                message = xhr.responseJSON.message;
+            } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                const errors = xhr.responseJSON.errors;
+                message = Object.values(errors).flat().join('\n');
+            }
+
+            Swal.fire({
+                position: "center",
+                icon: "warning",
+                title: "Oops...",
+                text: message,
+                showConfirmButton: true
+            });
+        }
+    });
+}
+
+function resetForm() {
+    $("input[name='id']").val('');
+    $("input[name='kode']").val('');
+    $("input[name='id_barang']").val('');
+    $("input[name='kode_barang']").val('');
+    $("input[name='nama_barang']").val('');
+    $("input[name='satuan_barang']").val('');
+    $("input[name='jenis_barang']").val('');
+    $("input[name='jumlah']").val('');
+    $("input[name='tanggal_keluar']").val(new Date().toISOString().split('T')[0]);
+    $("select[name='customer']").val('');
+    $('#stock-info').html('');
+    $("input[name='jumlah']").removeClass('is-invalid');
+    $('.stock-error').remove();
+}
+
+function resetBarangForm() {
+    $("input[name='kode_barang']").val('');
+    $("input[name='nama_barang']").val('');
+    $("input[name='satuan_barang']").val('');
+    $("input[name='jenis_barang']").val('');
+    $("input[name='id_barang']").val('');
+    $('#stock-info').html('');
+}
 
     $(document).on("click", ".ubah", function() {
         $("#modal-button").click();

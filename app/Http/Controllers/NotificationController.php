@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Session;
 class NotificationController extends Controller
 {
     /**
-     * Get all notifications - SUPER SIMPLE VERSION
+     * Get all notifications - FIXED VERSION with better validation
      */
     public function getNotifications(): JsonResponse
     {
@@ -30,12 +30,15 @@ class NotificationController extends Controller
                 ]);
             }
 
-            // 1. CEK STOK HABIS & RENDAH (untuk admin)
+            // PERTAMA: Bersihkan notifikasi yang tidak valid
+            $this->cleanupInvalidNotifications();
+
+            // 1. CEK STOK HABIS & RENDAH (untuk admin) - IMPROVED
             if ($this->isAdmin()) {
                 $notifications = array_merge($notifications, $this->getStockNotifications());
             }
 
-            // 2. CEK PENGAJUAN CUTI BARU (untuk admin)
+            // 2. CEK PENGAJUAN CUTI BARU (untuk admin) - IMPROVED
             if ($this->isAdmin()) {
                 $notifications = array_merge($notifications, $this->getLeaveValidationNotifications());
             }
@@ -91,56 +94,98 @@ class NotificationController extends Controller
     }
 
     /**
-     * Get stock notifications (out of stock & low stock)
+     * IMPROVED: Get stock notifications with STRICT validation
      */
     private function getStockNotifications(): array
     {
         $notifications = [];
 
         try {
-            // Out of stock items
+            // STRICT VALIDATION: Hanya ambil item yang benar-benar valid
             $outOfStockItems = DB::table('items')
                 ->where('quantity', '<=', 0)
                 ->where('active', 'true')
+                ->whereNotNull('name')
+                ->where('name', '!=', '')
+                ->where('name', 'NOT LIKE', '%deleted%') // Exclude marked as deleted
+                ->whereNull('deleted_at') // If using soft deletes
+                ->orderBy('updated_at', 'desc')
                 ->limit(5)
                 ->get();
 
             foreach ($outOfStockItems as $item) {
-                $notifications[] = [
-                    'id' => 'out_of_stock_' . $item->id,
-                    'type' => 'out_of_stock',
-                    'title' => 'Stok Habis!',
-                    'message' => "Item '{$item->name}' sudah habis",
-                    'icon' => 'fas fa-times-circle text-danger',
-                    'priority' => 'urgent',
-                    'time' => 'Urgent',
-                    'url' => '/laporan/stok?search=' . urlencode($item->name),
-                    'created_at' => now()->toISOString(),
-                    'data' => ['item_id' => $item->id, 'item_name' => $item->name]
-                ];
+                // DOUBLE CHECK: Pastikan item masih ada dan valid
+                $itemExists = DB::table('items')
+                    ->where('id', $item->id)
+                    ->where('active', 'true')
+                    ->whereNotNull('name')
+                    ->where('name', '!=', '')
+                    ->exists();
+                
+                if ($itemExists && !empty(trim($item->name))) {
+                    $notifications[] = [
+                        'id' => 'out_of_stock_' . $item->id,
+                        'type' => 'out_of_stock',
+                        'title' => 'Stok Habis!',
+                        'message' => "Item '{$item->name}' sudah habis",
+                        'icon' => 'fas fa-times-circle text-danger',
+                        'priority' => 'urgent',
+                        'time' => 'Urgent',
+                        'url' => '/laporan/stok?search=' . urlencode($item->name),
+                        'created_at' => now()->toISOString(),
+                        'data' => [
+                            'item_id' => $item->id, 
+                            'item_name' => $item->name,
+                            'redirect_type' => 'stock_report'
+                        ]
+                    ];
+                } else {
+                    // Log jika ada item yang tidak valid
+                    Log::warning("Invalid item found in out of stock: ID {$item->id}, Name: '{$item->name}'");
+                }
             }
 
-            // Low stock items (quantity between 1-3)
+            // STRICT VALIDATION untuk low stock
             $lowStockItems = DB::table('items')
                 ->where('quantity', '>', 0)
                 ->where('quantity', '<=', 3)
                 ->where('active', 'true')
+                ->whereNotNull('name')
+                ->where('name', '!=', '')
+                ->where('name', 'NOT LIKE', '%deleted%')
+                ->whereNull('deleted_at')
+                ->orderBy('quantity', 'asc')
                 ->limit(5)
                 ->get();
 
             foreach ($lowStockItems as $item) {
-                $notifications[] = [
-                    'id' => 'low_stock_' . $item->id,
-                    'type' => 'low_stock',
-                    'title' => 'Stok Rendah',
-                    'message' => "Item '{$item->name}' tersisa {$item->quantity} unit",
-                    'icon' => 'fas fa-exclamation-triangle text-warning',
-                    'priority' => 'high',
-                    'time' => 'Sekarang',
-                    'url' => '/laporan/stok?search=' . urlencode($item->name),
-                    'created_at' => now()->toISOString(),
-                    'data' => ['item_id' => $item->id, 'item_name' => $item->name, 'quantity' => $item->quantity]
-                ];
+                // DOUBLE CHECK untuk low stock
+                $itemExists = DB::table('items')
+                    ->where('id', $item->id)
+                    ->where('active', 'true')
+                    ->whereNotNull('name')
+                    ->where('name', '!=', '')
+                    ->exists();
+                
+                if ($itemExists && !empty(trim($item->name))) {
+                    $notifications[] = [
+                        'id' => 'low_stock_' . $item->id,
+                        'type' => 'low_stock',
+                        'title' => 'Stok Rendah',
+                        'message' => "Item '{$item->name}' tersisa {$item->quantity} unit",
+                        'icon' => 'fas fa-exclamation-triangle text-warning',
+                        'priority' => 'high',
+                        'time' => 'Sekarang',
+                        'url' => '/laporan/stok?search=' . urlencode($item->name),
+                        'created_at' => now()->toISOString(),
+                        'data' => [
+                            'item_id' => $item->id, 
+                            'item_name' => $item->name, 
+                            'quantity' => $item->quantity,
+                            'redirect_type' => 'stock_report'
+                        ]
+                    ];
+                }
             }
 
         } catch (\Exception $e) {
@@ -151,7 +196,7 @@ class NotificationController extends Controller
     }
 
     /**
-     * Get leave validation notifications (for admin)
+     * IMPROVED: Get leave validation notifications with better validation
      */
     private function getLeaveValidationNotifications(): array
     {
@@ -160,26 +205,42 @@ class NotificationController extends Controller
         try {
             $pendingLeaves = DB::table('leave_applications')
                 ->where('status', 'pending')
+                ->whereNotNull('name')
+                ->where('name', '!=', '')
+                ->whereNull('deleted_at') // If using soft deletes
                 ->orderBy('application_date', 'asc')
                 ->limit(10)
                 ->get();
 
             foreach ($pendingLeaves as $leave) {
-                $daysSinceApplication = Carbon::parse($leave->application_date)->diffInDays(now());
-                $isUrgent = $daysSinceApplication >= 3;
+                // Validasi leave application masih valid
+                $leaveExists = DB::table('leave_applications')
+                    ->where('id', $leave->id)
+                    ->where('status', 'pending')
+                    ->exists();
+                
+                if ($leaveExists && !empty(trim($leave->name))) {
+                    $daysSinceApplication = Carbon::parse($leave->application_date)->diffInDays(now());
+                    $isUrgent = $daysSinceApplication >= 3;
 
-                $notifications[] = [
-                    'id' => 'pending_leave_' . $leave->id,
-                    'type' => 'pending_leave',
-                    'title' => 'Pengajuan Cuti Pending',
-                    'message' => "Cuti {$leave->leave_type} dari {$leave->name}" . ($isUrgent ? " (sudah {$daysSinceApplication} hari)" : ''),
-                    'icon' => $isUrgent ? 'fas fa-calendar-times text-danger' : 'fas fa-calendar-check text-warning',
-                    'priority' => $isUrgent ? 'urgent' : 'high',
-                    'time' => $isUrgent ? 'Urgent!' : Carbon::parse($leave->application_date)->diffForHumans(),
-                    'url' => '/leave-validation?highlight=' . $leave->id,
-                    'created_at' => $leave->application_date,
-                    'data' => ['leave_id' => $leave->id, 'applicant_name' => $leave->name, 'days_pending' => $daysSinceApplication]
-                ];
+                    $notifications[] = [
+                        'id' => 'pending_leave_' . $leave->id,
+                        'type' => 'pending_leave',
+                        'title' => 'Pengajuan Cuti Pending',
+                        'message' => "Cuti {$leave->leave_type} dari {$leave->name}" . ($isUrgent ? " (sudah {$daysSinceApplication} hari)" : ''),
+                        'icon' => $isUrgent ? 'fas fa-calendar-times text-danger' : 'fas fa-calendar-check text-warning',
+                        'priority' => $isUrgent ? 'urgent' : 'high',
+                        'time' => $isUrgent ? 'Urgent!' : Carbon::parse($leave->application_date)->diffForHumans(),
+                        'url' => '/leave-validation?highlight=' . $leave->id,
+                        'created_at' => $leave->application_date,
+                        'data' => [
+                            'leave_id' => $leave->id, 
+                            'applicant_name' => $leave->name, 
+                            'days_pending' => $daysSinceApplication,
+                            'redirect_type' => 'leave_validation'
+                        ]
+                    ];
+                }
             }
 
         } catch (\Exception $e) {
@@ -190,7 +251,7 @@ class NotificationController extends Controller
     }
 
     /**
-     * Get user's leave notifications (status updates)
+     * Get user's leave notifications (status updates) - UNCHANGED
      */
     private function getUserLeaveNotifications($userId): array
     {
@@ -245,7 +306,11 @@ class NotificationController extends Controller
                     'time' => Carbon::parse($leave->approved_at)->diffForHumans(),
                     'url' => '/leave-application?view=' . $leave->id,
                     'created_at' => $leave->approved_at,
-                    'data' => ['leave_id' => $leave->id, 'status' => $leave->status]
+                    'data' => [
+                        'leave_id' => $leave->id, 
+                        'status' => $leave->status,
+                        'redirect_type' => 'leave_application'
+                    ]
                 ];
             }
 
@@ -257,8 +322,82 @@ class NotificationController extends Controller
     }
 
     /**
-     * Mark notification as read
+     * NEW: Method untuk membersihkan notifikasi yang tidak valid secara otomatis
      */
+    private function cleanupInvalidNotifications(): void
+    {
+        try {
+            $readNotifications = Session::get('read_notifications', []);
+            $validNotifications = [];
+            
+            foreach ($readNotifications as $notifId) {
+                $isValid = true;
+                
+                // Check stock notifications
+                if (strpos($notifId, 'out_of_stock_') === 0 || strpos($notifId, 'low_stock_') === 0) {
+                    $itemId = str_replace(['out_of_stock_', 'low_stock_'], '', $notifId);
+                    $isValid = DB::table('items')
+                        ->where('id', $itemId)
+                        ->where('active', 'true')
+                        ->whereNotNull('name')
+                        ->where('name', '!=', '')
+                        ->exists();
+                }
+                
+                // Check leave notifications
+                elseif (strpos($notifId, 'pending_leave_') === 0) {
+                    $leaveId = str_replace('pending_leave_', '', $notifId);
+                    $isValid = DB::table('leave_applications')
+                        ->where('id', $leaveId)
+                        ->exists();
+                }
+                
+                // Check leave status notifications
+                elseif (strpos($notifId, 'leave_status_') === 0) {
+                    $leaveId = str_replace('leave_status_', '', $notifId);
+                    $isValid = DB::table('leave_applications')
+                        ->where('id', $leaveId)
+                        ->exists();
+                }
+                
+                if ($isValid) {
+                    $validNotifications[] = $notifId;
+                } else {
+                    Log::info("Removed invalid notification: {$notifId}");
+                }
+            }
+            
+            // Update session dengan notifikasi yang valid saja
+            Session::put('read_notifications', $validNotifications);
+            
+        } catch (\Exception $e) {
+            Log::error('Error cleaning up invalid notifications: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * IMPROVED: Method untuk membersihkan notifikasi item yang sudah dihapus
+     */
+    public function cleanupDeletedItems(): JsonResponse
+    {
+        try {
+            $this->cleanupInvalidNotifications();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Cleaned up invalid notifications'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error cleaning up notifications: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to cleanup notifications'
+            ], 500);
+        }
+    }
+
+    // Semua method lainnya tetap sama...
     public function markAsRead(Request $request): JsonResponse
     {
         try {
@@ -306,9 +445,6 @@ class NotificationController extends Controller
         }
     }
 
-    /**
-     * Clear all read notifications from session
-     */
     public function clearRead(): JsonResponse
     {
         Session::forget('read_notifications');
@@ -319,9 +455,6 @@ class NotificationController extends Controller
         ]);
     }
 
-    /**
-     * Get notification counts only (lightweight endpoint)
-     */
     public function getCounts(): JsonResponse
     {
         try {
@@ -344,15 +477,12 @@ class NotificationController extends Controller
         }
     }
 
-    /**
-     * Get summary statistics
-     */
     public function getSummary(): JsonResponse
     {
         try {
             $summary = [];
 
-            // Stock summary (for admins)
+            // Stock summary (for admins) - WITH VALIDATION
             if ($this->isAdmin()) {
                 $stockSummary = DB::table('items')
                     ->selectRaw('
@@ -362,6 +492,10 @@ class NotificationController extends Controller
                         SUM(CASE WHEN quantity > 3 THEN 1 ELSE 0 END) as normal_stock
                     ')
                     ->where('active', 'true')
+                    ->whereNotNull('name')
+                    ->where('name', '!=', '')
+                    ->where('name', 'NOT LIKE', '%deleted%') // ADDED
+                    ->whereNull('deleted_at') // ADDED
                     ->first();
 
                 $summary['stock'] = [
@@ -379,6 +513,7 @@ class NotificationController extends Controller
                         SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as approved_count,
                         SUM(CASE WHEN status = "rejected" THEN 1 ELSE 0 END) as rejected_count
                     ')
+                    ->whereNull('deleted_at') // ADDED
                     ->first();
 
                 $summary['leave_admin'] = [
@@ -394,6 +529,7 @@ class NotificationController extends Controller
             if ($userId) {
                 $userLeaveSummary = DB::table('leave_applications')
                     ->where('user_id', $userId)
+                    ->whereNull('deleted_at') // ADDED
                     ->selectRaw('
                         COUNT(*) as total_applications,
                         SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_count,
@@ -424,16 +560,12 @@ class NotificationController extends Controller
         }
     }
 
-    /**
-     * Check if current user is admin
-     */
     private function isAdmin(): bool
     {
         try {
             $user = Auth::user();
             if (!$user) return false;
 
-            // Check multiple ways to determine admin
             if (isset($user->role) && $user->role->name === 'admin') {
                 return true;
             }
@@ -442,7 +574,6 @@ class NotificationController extends Controller
                 return true;
             }
 
-            // Fallback: check role table directly
             $roleCheck = DB::table('users')
                 ->join('roles', 'users.role_id', '=', 'roles.id')
                 ->where('users.id', $user->id)
@@ -457,16 +588,12 @@ class NotificationController extends Controller
         }
     }
 
-    /**
-     * Test endpoint to create sample notifications
-     */
     public function test(): JsonResponse
     {
         if (!$this->isAdmin()) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        // Just return current notifications for testing
         return $this->getNotifications();
     }
 }

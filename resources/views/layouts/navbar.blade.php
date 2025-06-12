@@ -1,4 +1,4 @@
-<!-- SUPER SIMPLE WORKING NAVBAR -->
+<!-- FIXED NAVBAR WITH IMPROVED NOTIFICATIONS -->
 <nav class="main-header navbar navbar-expand navbar-white navbar-light">
   <ul class="navbar-nav">
     <li class="nav-item">
@@ -7,7 +7,7 @@
   </ul>
  
   <ul class="navbar-nav ml-auto d-flex align-items-center">
-    <!-- SIMPLE Notifications -->
+    <!-- IMPROVED Notifications -->
     <li class="nav-item dropdown mr-3">
       <a class="nav-link position-relative" data-toggle="dropdown" href="#" id="notif-bell" role="button">
         <i class="far fa-bell fa-lg"></i>
@@ -16,9 +16,14 @@
       <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right" id="notif-dropdown">
         <div class="dropdown-item dropdown-header d-flex justify-content-between">
           <span id="notif-header">Loading...</span>
-          <button type="button" class="btn btn-sm btn-outline-primary" id="mark-all-btn">
-            <i class="fas fa-check-double"></i> Mark All
-          </button>
+          <div class="btn-group">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-btn" title="Refresh">
+              <i class="fas fa-sync-alt"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="mark-all-btn" title="Mark All Read">
+              <i class="fas fa-check-double"></i>
+            </button>
+          </div>
         </div>
         <div class="dropdown-divider"></div>
         <div id="notif-items">
@@ -67,10 +72,10 @@
 <!-- CSRF Token -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
-<!-- SIMPLE & WORKING SCRIPT -->
+<!-- FIXED & IMPROVED SCRIPT -->
 <script>
 $(document).ready(function() {
-    console.log('🚀 Simple Notification System Starting...');
+    console.log('🚀 Fixed Notification System Starting...');
     
     // AJAX Setup
     $.ajaxSetup({
@@ -81,23 +86,48 @@ $(document).ready(function() {
 
     let isDropdownOpen = false;
     let pollTimer = null;
+    let isLoading = false;
 
-    // Load notifications function
-    function loadNotifications() {
-        console.log('📡 Loading notifications...');
+    // Load notifications function with improved error handling
+    function loadNotifications(silent = false) {
+        if (isLoading && !silent) return;
+        
+        if (!silent) {
+            console.log('📡 Loading notifications...');
+            isLoading = true;
+        }
         
         $.ajax({
-            url: '/notifications',  // Fixed URL - no /get suffix
+            url: '/notifications',
             method: 'GET',
             timeout: 15000,
             success: function(response) {
-                console.log('✅ Success:', response);
+                if (!silent) {
+                    console.log('✅ Success:', response);
+                    isLoading = false;
+                }
                 updateUI(response);
             },
             error: function(xhr, status, error) {
-                console.error('❌ Error:', xhr.status, error);
+                if (!silent) {
+                    console.error('❌ Error:', xhr.status, error);
+                    isLoading = false;
+                }
                 handleError(xhr.status, error);
             }
+        });
+    }
+
+    // Auto cleanup deleted items (call this periodically)
+    function cleanupDeletedItems() {
+        $.post('/notifications/cleanup-deleted', {
+            _token: $('meta[name="csrf-token"]').attr('content')
+        }).done(function(response) {
+            if (response.success) {
+                console.log('🧹 Cleaned up invalid notifications');
+            }
+        }).fail(function(xhr) {
+            console.error('❌ Error cleaning up:', xhr);
         });
     }
 
@@ -135,7 +165,7 @@ $(document).ready(function() {
         }
     }
 
-    // Update notifications list
+    // IMPROVED: Update notifications list with better click handling
     function updateNotificationsList(notifications) {
         const $container = $('#notif-items');
         
@@ -158,8 +188,13 @@ $(document).ready(function() {
             html += `
                 <div class="dropdown-item notif-item ${bgClass}" 
                      data-id="${notif.id}" 
+                     data-type="${notif.type}"
                      data-url="${notif.url || '#'}" 
-                     style="cursor: pointer; border-left: 4px solid ${borderColor}; min-height: 60px;">
+                     data-redirect-type="${notif.data?.redirect_type || 'default'}"
+                     data-item-name="${escapeHtml(notif.data?.item_name || '')}"
+                     data-leave-id="${notif.data?.leave_id || ''}"
+                     style="cursor: pointer; border-left: 4px solid ${borderColor}; min-height: 60px;"
+                     onclick="handleNotificationClick(this)">
                     <div class="d-flex">
                         <div class="mr-3 mt-1">
                             <i class="${notif.icon}" style="font-size: 1.1rem;"></i>
@@ -179,6 +214,73 @@ $(document).ready(function() {
         
         $container.html(html);
     }
+
+    // IMPROVED: Universal notification click handler
+    window.handleNotificationClick = function(element) {
+        const $element = $(element);
+        const notificationId = $element.data('id');
+        const redirectType = $element.data('redirect-type');
+        const itemName = $element.data('item-name');
+        const leaveId = $element.data('leave-id');
+        const url = $element.data('url');
+        
+        console.log('🔔 Notification clicked:', {
+            id: notificationId,
+            type: redirectType,
+            itemName: itemName,
+            leaveId: leaveId,
+            url: url
+        });
+        
+        // Mark as read first
+        markAsRead(notificationId);
+        
+        // Add visual feedback
+        $element.addClass('loading');
+        
+        // Redirect based on type
+        setTimeout(function() {
+            try {
+                switch (redirectType) {
+                    case 'stock_report':
+                        if (itemName) {
+                            window.location.href = '/laporan/stok?search=' + encodeURIComponent(itemName);
+                        } else {
+                            window.location.href = '/laporan/stok';
+                        }
+                        break;
+                        
+                    case 'leave_validation':
+                        if (leaveId) {
+                            window.location.href = '/leave-validation?highlight=' + leaveId;
+                        } else {
+                            window.location.href = '/leave-validation';
+                        }
+                        break;
+                        
+                    case 'leave_application':
+                        if (leaveId) {
+                            window.location.href = '/leave-application?view=' + leaveId;
+                        } else {
+                            window.location.href = '/leave-application';
+                        }
+                        break;
+                        
+                    default:
+                        if (url && url !== '#') {
+                            window.location.href = url;
+                        } else {
+                            console.warn('No valid URL for notification');
+                            $element.removeClass('loading');
+                        }
+                        break;
+                }
+            } catch (error) {
+                console.error('Error redirecting:', error);
+                $element.removeClass('loading');
+            }
+        }, 300);
+    };
 
     // Get notification color by type
     function getNotificationColor(type) {
@@ -229,7 +331,7 @@ $(document).ready(function() {
             if (response.success) {
                 console.log('✅ Marked as read:', notificationId);
                 // Refresh notifications after short delay
-                setTimeout(loadNotifications, 500);
+                setTimeout(() => loadNotifications(true), 500);
             }
         }).fail(function(xhr) {
             console.error('❌ Error marking as read:', xhr);
@@ -248,7 +350,7 @@ $(document).ready(function() {
             _token: $('meta[name="csrf-token"]').attr('content')
         }).done(function(response) {
             if (response.success) {
-                $btn.html('<i class="fas fa-check text-success"></i> Done');
+                $btn.html('<i class="fas fa-check text-success"></i>');
                 
                 // Refresh after 1 second
                 setTimeout(function() {
@@ -258,7 +360,7 @@ $(document).ready(function() {
             }
         }).fail(function(xhr) {
             console.error('❌ Error marking all as read:', xhr);
-            $btn.html('<i class="fas fa-times text-danger"></i> Error');
+            $btn.html('<i class="fas fa-times text-danger"></i>');
             
             setTimeout(function() {
                 $btn.html(originalHtml).prop('disabled', false);
@@ -287,6 +389,25 @@ $(document).ready(function() {
         }
     });
 
+    // Refresh button click
+    $('#refresh-btn').on('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const $btn = $(this);
+        const originalHtml = $btn.html();
+        
+        $btn.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+        
+        // Clean up invalid notifications first, then load
+        cleanupDeletedItems();
+        
+        setTimeout(function() {
+            loadNotifications();
+            $btn.html(originalHtml).prop('disabled', false);
+        }, 1000);
+    });
+
     // Mark all button click
     $('#mark-all-btn').on('click', function(e) {
         e.preventDefault();
@@ -294,30 +415,12 @@ $(document).ready(function() {
         markAllAsRead();
     });
 
-    // Notification item click
-    $(document).on('click', '.notif-item', function(e) {
-        const notificationId = $(this).data('id');
-        const url = $(this).data('url');
-        
-        console.log('🔔 Clicked notification:', notificationId, url);
-        
-        // Mark as read
-        markAsRead(notificationId);
-        
-        // Navigate if URL provided
-        if (url && url !== '#') {
-            setTimeout(function() {
-                window.location.href = url;
-            }, 300);
-        }
-    });
-
     // Escape HTML to prevent XSS
     function escapeHtml(unsafe) {
         return $('<div>').text(unsafe || '').html();
     }
 
-    // Start periodic polling
+    // Start periodic polling with cleanup
     function startPolling() {
         // Clear existing timer
         if (pollTimer) {
@@ -327,7 +430,12 @@ $(document).ready(function() {
         // Poll every 30 seconds
         pollTimer = setInterval(function() {
             if (!document.hidden) {
-                loadNotifications();
+                loadNotifications(true); // Silent refresh
+                
+                // Cleanup invalid notifications every 5 minutes
+                if (Math.random() < 0.1) { // 10% chance each poll (roughly every 5 minutes)
+                    cleanupDeletedItems();
+                }
             }
         }, 30000);
         
@@ -337,7 +445,7 @@ $(document).ready(function() {
     // Page visibility change handler
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
-            loadNotifications();
+            loadNotifications(true);
         }
     });
 
@@ -349,15 +457,16 @@ $(document).ready(function() {
     });
 
     // Initialize
-    console.log('🔧 Initializing notification system...');
-    loadNotifications();  // Initial load
-    startPolling();       // Start periodic updates
+    console.log('🔧 Initializing fixed notification system...');
+    cleanupDeletedItems();  // Clean up first
+    loadNotifications();    // Initial load
+    startPolling();         // Start periodic updates
     
-    console.log('✅ Simple Notification System Ready!');
+    console.log('✅ Fixed Notification System Ready!');
 });
 </script>
 
-<!-- Simple CSS -->
+<!-- IMPROVED CSS -->
 <style>
 #notif-count {
     position: absolute;
@@ -373,7 +482,7 @@ $(document).ready(function() {
 }
 
 #notif-dropdown {
-    min-width: 350px;
+    min-width: 380px;
     max-height: 400px;
     overflow-y: auto;
     border: none;
@@ -381,16 +490,46 @@ $(document).ready(function() {
 }
 
 .notif-item {
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
     margin-bottom: 1px;
+    position: relative;
 }
 
 .notif-item:hover {
     background-color: #f8f9fa !important;
+    transform: translateX(2px);
+}
+
+.notif-item.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.notif-item.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 .dropdown-footer {
     padding: 10px;
+}
+
+.btn-group .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
 }
 
 /* Custom scrollbar */
@@ -405,5 +544,27 @@ $(document).ready(function() {
 #notif-dropdown::-webkit-scrollbar-thumb {
     background: #c1c1c1;
     border-radius: 3px;
+}
+
+/* Animation for notifications */
+.notif-item {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Success animation */
+.notif-item.clicked {
+    background-color: #d4edda !important;
+    border-color: #c3e6cb !important;
 }
 </style>

@@ -2,12 +2,13 @@
 <html lang="{{ app()->getLocale() }}">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="menejemen inventaris barang">
-  <meta name="csrf-token" content="{{csrf_token()}}">
-  <title>{{config('app.name')}} | @yield('title')</title>
-  <link rel="stylesheet" href="{{ asset('css/app.css') }}">
-  
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Inventaris Yankes</title>
+     <link rel="icon" type="image/png" href="{{ asset('yankes.png') }}">
+  <link rel="shortcut icon" type="image/png" href="{{ asset('yankes.png') }}">
+  <link rel="apple-touch-icon" href="{{ asset('yankes.png') }}">
+    <!-- Vite app.css -->
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
   <!-- Google Font: Source Sans Pro -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
   <!-- Font Awesome -->
@@ -48,9 +49,6 @@
   <link rel="stylesheet" href="{{ asset("localizations/flags.css") }}">
   
   <style>
-    .lang-icon {
-        background-image: url('{{ asset("localizations/flags.png") }}');
-    }
     
     /* CSS untuk Notifikasi */
     .navbar-badge {
@@ -363,7 +361,7 @@
   
   function loadNotifications() {
     $.ajax({
-        url: '/notifications/get',
+        url: '/notifications',
         method: 'GET',
         headers: {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')

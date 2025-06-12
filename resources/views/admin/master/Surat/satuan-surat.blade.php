@@ -97,8 +97,8 @@
                                         </div>
                                         <div class="col-md-6">
                                             <div class="form-group mb-3">
-                                                <label for="from_department">{{ __("from department") }}</label>
-                                                <input type="text" class="form-control" id="from_department" name="from_department" autocomplete="off" placeholder="asal surat" readonly>
+                                                <label for="from_department">{{ __("Dari") }}</label>
+                                                <input type="text" class="form-control" id="from_department" name="dari" autocomplete="off" placeholder="asal surat" readonly>
                                                 <small class="form-text text-muted">Akan otomatis terisi jika memilih Pengirim surat</small>
                                             </div>
                                         </div>
