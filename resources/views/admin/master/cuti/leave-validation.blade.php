@@ -254,13 +254,7 @@
             showStatusChangeModal(leaveId, 'rejected');
         });
 
-        // Event handler for process button
-        $(document).on("click", ".process", function() {
-            const leaveId = $(this).data('id');
-            showStatusChangeModal(leaveId, 'processed');
-        });
-
-        // Function to show status change modal
+        // Function to show status change modal (only approve and reject)
         function showStatusChangeModal(leaveId, newStatus) {
             const statusMessages = {
                 'approved': {
@@ -274,12 +268,6 @@
                     buttonClass: 'btn-danger',
                     buttonText: '{{__("Reject Application")}}',
                     required: true
-                },
-                'processed': {
-                    message: '{{__("You are about to set this application as processing. This indicates the application is under review.")}}',
-                    buttonClass: 'btn-warning',
-                    buttonText: '{{__("Set as Processing")}}',
-                    required: false
                 }
             };
             
@@ -292,7 +280,7 @@
             $('#catatan_validator').val('');
             
             const confirmBtn = $('#confirm-status-change');
-            confirmBtn.removeClass('btn-primary btn-success btn-danger btn-warning')
+            confirmBtn.removeClass('btn-primary btn-success btn-danger')
                      .addClass(config.buttonClass)
                      .text(config.buttonText);
             
@@ -310,7 +298,7 @@
             $('#StatusChangeModal').modal('show');
         }
 
-        // Handle status change confirmation
+        // Handle status change confirmation (only approve and reject)
         $('#confirm-status-change').on('click', function() {
             const leaveId = $('#leave_id').val();
             const newStatus = $('#new_status').val();
@@ -330,14 +318,12 @@
             
             const routes = {
                 'approved': "{{route('leave-validation.approve')}}",
-                'rejected': "{{route('leave-validation.reject')}}",
-                'processed': "{{route('leave-validation.process')}}"
+                'rejected': "{{route('leave-validation.reject')}}"
             };
             
             const actionTexts = {
                 'approved': "{{__('Approving')}}",
-                'rejected': "{{__('Rejecting')}}",
-                'processed': "{{__('Processing')}}"
+                'rejected': "{{__('Rejecting')}}"
             };
             
             // Show loading state
@@ -390,12 +376,11 @@
                     const newStatus = $('#new_status').val();
                     const statusMessages = {
                         'approved': { buttonClass: 'btn-success', buttonText: '{{__("Approve Application")}}' },
-                        'rejected': { buttonClass: 'btn-danger', buttonText: '{{__("Reject Application")}}' },
-                        'processed': { buttonClass: 'btn-warning', buttonText: '{{__("Set as Processing")}}' }
+                        'rejected': { buttonClass: 'btn-danger', buttonText: '{{__("Reject Application")}}' }
                     };
                     const config = statusMessages[newStatus];
                     if (config) {
-                        $('#confirm-status-change').removeClass('btn-primary btn-success btn-danger btn-warning')
+                        $('#confirm-status-change').removeClass('btn-primary btn-success btn-danger')
                                                    .addClass(config.buttonClass)
                                                    .text(config.buttonText);
                     }
@@ -441,7 +426,7 @@
                                     <p><strong>{{__('Email')}}:</strong> ${data.email || 'N/A'}</p>
                                     <p><strong>{{__('Application Date')}}:</strong> ${new Date(data.application_date).toLocaleDateString()}</p>
                                     <p><strong>{{__('Leave Type')}}:</strong> ${data.leave_type}</p>
-                                    <p><strong>{{__('Status')}}:</strong> <span class="badge badge-${data.status === 'approved' ? 'success' : data.status === 'rejected' ? 'danger' : data.status === 'processed' ? 'info' : 'warning'}">${data.status}</span></p>
+                                    <p><strong>{{__('Status')}}:</strong> <span class="badge badge-${data.status === 'approved' ? 'success' : data.status === 'rejected' ? 'danger' : 'warning'}">${data.status}</span></p>
                                 </div>
                                 <div class="col-md-6">
                                     <p><strong>{{__('Start Date')}}:</strong> ${new Date(data.start_date).toLocaleDateString()}</p>
@@ -487,7 +472,7 @@
         // Reset modal when closed
         $('#StatusChangeModal').on('hidden.bs.modal', function () {
             $('#status-change-form')[0].reset();
-            $('#confirm-status-change').removeClass('btn-success btn-danger btn-warning').addClass('btn-primary').text('{{__("Confirm Change")}}');
+            $('#confirm-status-change').removeClass('btn-success btn-danger').addClass('btn-primary').text('{{__("Confirm Change")}}');
             $('#required-indicator').hide();
         });
     });

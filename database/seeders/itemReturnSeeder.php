@@ -77,7 +77,7 @@ class ItemReturnSeeder extends Seeder
                 ['name' => $data['borrower_name']],
                 [
                     'phone_number' => '081231234' . rand(10000000, 99999999), // Sesuai dengan field di model
-                    'address' => 'Alamat ' . $data['borrower_name'],
+                    'address' => 'Alamat' . $data['borrower_name'],
                 ]
             );
             

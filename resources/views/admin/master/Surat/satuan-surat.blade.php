@@ -34,7 +34,8 @@
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center w-100">
                         <h5 class="card-title mb-0">{{ __("letter management") }}</h5>
-                        @if(Auth::user()->role->name != 'staff')
+                        {{-- Tombol tambah data hanya untuk employee --}}
+                        @if(Auth::user()->role->name == 'employee')
                             <button class="btn btn-success" type="button" data-toggle="modal" data-target="#letterModal" id="modal-button">
                                 <i class="fas fa-plus"></i> {{ __("add data") }}
                             </button>
@@ -57,16 +58,16 @@
                                     <input type="hidden" name="id" id="id">
                                     
                                     <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="form-group mb-3">
+                                        <div class="col-md-6 mb-3">
+                                            <div class="form-group">
                                                 <label for="code">{{ __("Nomor surat") }} <span class="text-danger">*</span></label>
-                                                <input type="text" class="form-control" id="code" name="code" autocomplete="off" placeholder="Masukkan Nomor Surat">
+                                                <input type="text" class="form-control" id="code" name="code" autocomplete="off" placeholder="Masukkan Nomor Surat" required>
                                             </div>
                                         </div>
-                                        <div class="col-md-6">
-                                            <div class="form-group mb-3">
+                                        <div class="col-md-6 mb-3">
+                                            <div class="form-group">
                                                 <label for="category_letter_id">{{ __("Jenis Surat") }} <span class="text-danger">*</span></label>
-                                                <select class="form-control" id="category_letter_id" name="category_letter_id">
+                                                <select class="form-control" id="category_letter_id" name="category_letter_id" required>
                                                     <option value="">{{ __("Pilih Jenis Surat") }}</option>
                                                     @foreach($jenissurat as $jenis)
                                                         <option value="{{ $jenis->id }}">{{ $jenis->name }}</option>
@@ -77,35 +78,46 @@
                                     </div>
                                     
                                     <div class="form-group mb-3">
-                                        <label for="name">{{ __("Nama Surat") }} <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="name" name="name" autocomplete="off" placeholder="Masukkan nama surat">
+                                        <label for="name">{{ __("Perihal") }} <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="name" name="name" autocomplete="off" placeholder="Masukkan perihal surat" required>
                                     </div>
 
                                     <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="form-group mb-3">
-                                                <label for="sender_letter_id">{{ __("Pengirim surat") }}</label>
-                                                <select class="form-control" id="sender_letter_id" name="sender_letter_id">
-                                                    <option value="">{{ __("select Pengirim surat") }}</option>
-                                                    @foreach($senderletters as $sender)
-                                                        <option value="{{ $sender->id }}" data-department="{{ $sender->from_department }}">
-                                                            {{ $sender->name }}
-                                                        </option>
-                                                    @endforeach
+                                        <div class="col-md-6 mb-3">
+                                            <div class="form-group">
+                                                <label for="sender_letter_id">{{ __("Tujuan Surat") }} <span class="text-danger">*</span></label>
+                                                <select class="form-control" id="sender_letter_id" name="sender_letter_id" required>
+                                                    <option value="">{{ __("Pilih Tujuan Surat") }}</option>
+                                                    @if(isset($senderletters) && count($senderletters) > 0)
+                                                        @foreach($senderletters as $sender)
+                                                            <option value="{{ $sender->id }}" data-department="{{ $sender->from_department ?? '' }}">
+                                                                {{ $sender->destination ?? 'Nama tidak tersedia' }}
+                                                            </option>
+                                                        @endforeach
+                                                    @else
+                                                        <option value="" disabled>Tidak ada data pengirim</option>
+                                                    @endif
                                                 </select>
+                                                <small class="form-text text-muted">
+                                                    @if(!isset($senderletters) || count($senderletters) == 0)
+                                                        <span class="text-warning">⚠️ Data pengirim surat belum tersedia. Silakan tambahkan data pengirim terlebih dahulu.</span>
+                                                    @else
+                                                        Pilih tujuan untuk mengisi tujuan surat otomatis
+                                                    @endif
+                                                </small>
                                             </div>
                                         </div>
-                                        <div class="col-md-6">
-                                            <div class="form-group mb-3">
-                                                <label for="from_department">{{ __("Dari") }}</label>
-                                                <input type="text" class="form-control" id="from_department" name="dari" autocomplete="off" placeholder="asal surat" readonly>
-                                                <small class="form-text text-muted">Akan otomatis terisi jika memilih Pengirim surat</small>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="form-group">
+                                                <label for="from_department">{{ __("Asal Surat") }}</label>
+                                                <input type="text" class="form-control" id="from_department" name="dari" autocomplete="off" placeholder="Asal surat" readonly>
+                                                <small class="form-text text-muted">Akan otomatis terisi jika memilih tujuan surat</small>
                                             </div>
                                         </div>
                                     </div>
                                     
                                     <div class="form-group mb-3">
-                                        <label for="file">{{ __("upload file") }} 
+                                        <label for="file">{{ __("Upload file") }} 
                                             <small class="text-muted">(PDF, DOC, DOCX, JPG, PNG - Max: 10MB)</small>
                                         </label>
                                         <div class="custom-file">
@@ -113,7 +125,7 @@
                                             <label class="custom-file-label" for="file">Pilih file...</label>
                                         </div>
                                     </div>
-                                    
+
                                     <div id="current-file" class="form-group mb-3" style="display: none;">
                                         <label>{{ __("current file") }}</label>
                                         <div class="border p-3 rounded bg-light">
@@ -190,12 +202,12 @@
                                 <tr>
                                     <th class="border-bottom-0" width="5%">{{ __("no") }}</th>
                                     <th class="border-bottom-0">{{ __("Nomor Surat") }}</th>
-                                    <th class="border-bottom-0">{{ __("Nama Surat") }}</th>
+                                    <th class="border-bottom-0">{{ __("Perihal") }}</th>
                                     <th class="border-bottom-0">{{ __("Jenis Surat") }}</th>
-                                    <th class="border-bottom-0">{{ __("Nama Pengirim") }}</th>
-                                    <th class="border-bottom-0">{{ __("Dari") }}</th>
+                                    <th class="border-bottom-0">{{ __("Asal Surat") }}</th>
                                     <th class="border-bottom-0" width="20%">{{ __("detail surat") }}</th>
-                                    @if(Auth::user()->role->name != 'staff')
+                                    {{-- Kolom action hanya untuk employee --}}
+                                    @if(Auth::user()->role->name == 'employee')
                                     <th class="border-bottom-0" width="15%">{{ __("action") }}</th>
                                     @endif
                                 </tr>
@@ -215,9 +227,30 @@
     let currentLetterId = null;
     let currentFileData = null;
     let isEditMode = false;
+    const userRole = "{{ Auth::user()->role->name }}";
 
     // Initialize DataTable
     function initDataTable() {
+        let columns = [
+            { data: null, sortable: false, render: (data, type, row, meta) => meta.row + meta.settings._iDisplayStart + 1 },
+            { data: 'code', name: 'code' },
+            { data: 'name', name: 'name' },
+            { data: 'category_letter_name', name: 'category_letter_name' },
+            { data: 'from_department', name: 'from_department' },
+            { data: 'file_info', name: 'file_info', orderable: false, searchable: false }
+        ];
+
+        // Kolom action hanya untuk employee
+        if(userRole === 'employee') {
+            columns.push({ 
+                data: 'tindakan', 
+                name: 'tindakan', 
+                orderable: false, 
+                searchable: false,
+                render: (data) => `<div class="btn-group-actions">${data}</div>`
+            });
+        }
+
         $('#data-surat').DataTable({
             responsive: true,
             lengthChange: true,
@@ -229,24 +262,7 @@
                 type: 'GET',
                 error: (xhr, error, thrown) => console.log('DataTables Ajax Error:', xhr, error, thrown)
             },
-            columns: [
-                { data: null, sortable: false, render: (data, type, row, meta) => meta.row + meta.settings._iDisplayStart + 1 },
-                { data: 'code', name: 'code' },
-                { data: 'name', name: 'name' },
-                { data: 'category_letter_name', name: 'category_letter_name' },
-                { data: 'sender_name', name: 'sender_name' },
-                { data: 'from_department', name: 'from_department' },
-                { data: 'file_info', name: 'file_info', orderable: false, searchable: false },
-                @if(Auth::user()->role->name != 'staff')
-                { 
-                    data: 'tindakan', 
-                    name: 'tindakan', 
-                    orderable: false, 
-                    searchable: false,
-                    render: (data) => `<div class="btn-group-actions">${data}</div>`
-                }
-                @endif
-            ],
+            columns: columns,
             language: {
                 processing: "Memuat data...",
                 lengthMenu: "Tampilkan _MENU_ data per halaman",

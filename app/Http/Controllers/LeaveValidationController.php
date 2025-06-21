@@ -46,14 +46,13 @@ class LeaveValidationController extends Controller
         }
     }
 
-    // Method untuk mendapatkan status badge
+    // Method untuk mendapatkan status badge (removed 'processed' status)
     private function getStatusBadge($status): string
     {
         $badges = [
             'pending' => '<span class="badge badge-warning"><i class="fas fa-clock"></i> Pending</span>',
             'approved' => '<span class="badge badge-success"><i class="fas fa-check"></i> Approved</span>',
             'rejected' => '<span class="badge badge-danger"><i class="fas fa-times"></i> Rejected</span>',
-            'processed' => '<span class="badge badge-info"><i class="fas fa-cog"></i> Processed</span>',
         ];
        
         return $badges[$status] ?? '<span class="badge badge-secondary">Unknown</span>';
@@ -238,7 +237,7 @@ class LeaveValidationController extends Controller
 
             return response()->json([
                 "success" => true,
-                "message" => __("Pengajuan cuti berhasil di setujui")
+                "message" => __("Leave application rejected successfully")
             ])->setStatusCode(200);
             
         } catch (\Exception $e) {
@@ -252,82 +251,14 @@ class LeaveValidationController extends Controller
         }
     }
 
-    public function process(Request $request): JsonResponse
-    {
-        try {
-            // Cek role admin
-            if(Auth::user()->role->name != 'admin' && Auth::user()->role_id !== 1){
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Unauthorized access'
-                ], 403);
-            }
-
-            $validated = $request->validate([
-                'id' => 'required|integer',
-                'catatan_validator' => 'nullable|string|max:255'
-            ]);
-
-            $leaveApplication = LeaveApplication::find($validated['id']);
-
-            if (!$leaveApplication) {
-                return response()->json([
-                    "success" => false,
-                    "message" => __("Leave application not found.")
-                ], 404);
-            }
-
-            if ($leaveApplication->status !== 'pending') {
-                return response()->json([
-                    "success" => false,
-                    "message" => __("Application already processed")
-                ], 400);
-            }
-
-            $oldStatus = $leaveApplication->status;
-
-            $leaveApplication->status = 'processed';
-            $leaveApplication->approved_by = Auth::id();
-            $leaveApplication->approved_at = now();
-            $leaveApplication->catatan_validator = $request->catatan_validator;
-
-            $status = $leaveApplication->save();
-
-            if (!$status) {
-                return response()->json([
-                    "success" => false,
-                    "message" => __("Failed to process application")
-                ], 400);
-            }
-
-            // Kirim email notifikasi ke pegawai
-            $this->sendStatusUpdateEmail($leaveApplication, $oldStatus);
-
-            return response()->json([
-                "success" => true,
-                "message" => __("Leave application processed successfully")
-            ])->setStatusCode(200);
-            
-        } catch (\Exception $e) {
-            Log::error('Error in process leave application: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'error' => true,
-                'message' => 'Terjadi kesalahan saat memproses pengajuan',
-                'details' => config('app.debug') ? $e->getMessage() : null
-            ], 500);
-        }
-    }
-
     private function buildValidationActionButtons($data): string
     {
         $buttons = [];
         
-        // Hanya tampilkan action buttons jika status masih pending
+        // Hanya tampilkan action buttons jika status masih pending (removed process button)
         if ($data->status === 'pending') {
             $buttons[] = "<button class='approve btn btn-success btn-sm m-1' data-id='{$data->id}'><i class='fas fa-check'></i> " . __("Approve") . "</button>";
             $buttons[] = "<button class='reject btn btn-danger btn-sm m-1' data-id='{$data->id}'><i class='fas fa-times'></i> " . __("Reject") . "</button>";
-            $buttons[] = "<button class='process btn btn-info btn-sm m-1' data-id='{$data->id}'><i class='fas fa-cog'></i> " . __("Process") . "</button>";
         }
         
         // Detail button selalu ada

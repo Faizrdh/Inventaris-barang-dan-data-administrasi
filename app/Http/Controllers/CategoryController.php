@@ -68,7 +68,6 @@ class CategoryController extends Controller
             ["data"=>$data]
         )->setStatusCode(200);
     }
-
     public function update(UpdateCategoryRequest $request): JsonResponse
     {
         $id = $request -> id;

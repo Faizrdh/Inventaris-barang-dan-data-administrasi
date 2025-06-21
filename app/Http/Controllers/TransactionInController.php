@@ -25,19 +25,10 @@ class TransactionInController extends Controller
 
     public function list(Request $request): JsonResponse
     {
-        try {
-            $goodsins = GoodsIn::with(['item.unit', 'user', 'supplier'])->latest();
-            
-            // Filter by date range if provided
-            if ($request->start_date) {
-                $goodsins->where('date_received', '>=', $request->start_date);
-            }
-            if ($request->end_date) {
-                $goodsins->where('date_received', '<=', $request->end_date);
-            }
-            
-            if($request->ajax()){
-                return DataTables::of($goodsins)
+        $goodsins = GoodsIn::with(['item.unit', 'user', 'supplier'])->latest()->get();
+        
+        if($request->ajax()){
+            return DataTables::of($goodsins)
                 ->addColumn('quantity_formatted', function($data) {
                     $unit = $data->item->unit->name ?? 'Unit';
                     return '<span class="badge badge-success">' . number_format($data->quantity) . ' ' . $unit . '</span>';
@@ -49,7 +40,7 @@ class TransactionInController extends Controller
                     return $data->item->code ?? '-';
                 })
                 ->addColumn('supplier_name', function($data) {
-                    return $data->supplier->name ?? 'Unknown Supplier';
+                    return $data->item->name ?? 'Unknown Item';
                 })
                 ->addColumn('item_name', function($data) {
                     return $data->item->name ?? 'Unknown Item';
@@ -65,30 +56,22 @@ class TransactionInController extends Controller
                     return '<span class="' . $class . '">' . number_format($currentStock) . ' ' . $unit . '</span>';
                 })
                 ->addColumn('tindakan', function($data) {
-                    $button = "<button class='ubah btn btn-success btn-sm m-1' id='" . $data->id . "' title='Edit'>";
+                    $button = "<button class='ubah btn btn-success btn-sm m-1' id='" . $data->id . "'>";
                     $button .= "<i class='fas fa-edit'></i> " . __("edit") . "</button>";
-                    $button .= "<button class='hapus btn btn-danger btn-sm m-1' id='" . $data->id . "' title='Delete'>";
+                    $button .= "<button class='hapus btn btn-danger btn-sm m-1' id='" . $data->id . "'>";
                     $button .= "<i class='fas fa-trash'></i> " . __("delete") . "</button>";
-                    $button .= "<button class='detail btn btn-info btn-sm m-1' id='" . $data->id . "' title='Detail'>";
-                    $button .= "<i class='fas fa-eye'></i> " . __("detail") . "</button>";
                     
                     return $button;
                 })
                 ->rawColumns(['quantity_formatted', 'current_stock', 'tindakan'])
                 ->make(true);
-            }
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'This endpoint requires AJAX request'
-            ], 400);
-            
-        } catch (\Exception $e) {
-            Log::error('Error in transaction in list: ' . $e->getMessage());
-            return response()->json([
-                'error' => 'Error loading data: ' . $e->getMessage()
-            ], 500);
         }
+        
+        // Tambahkan return statement untuk kondisi non-ajax
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Request harus menggunakan AJAX'
+        ], 400); // Bad Request
     }
 
     public function save(Request $request): JsonResponse
@@ -96,8 +79,8 @@ class TransactionInController extends Controller
         DB::beginTransaction();
         
         try {
-            // Enhanced validation - Tanpa price
-            $validated = $request->validate([
+            // Validasi request
+            $request->validate([
                 'user_id' => 'required|exists:users,id',
                 'supplier_id' => 'required|exists:suppliers,id',
                 'date_received' => 'required|date|before_or_equal:today',
@@ -107,57 +90,51 @@ class TransactionInController extends Controller
             ]);
 
             // Check if item exists and is valid
-            $item = Item::find($validated['item_id']);
+            $item = Item::find($request->item_id);
             if (!$item) {
                 return response()->json([
-                    'message' => 'Item not found'
-                ], 404);
+                    "message" => "Item not found"
+                ])->setStatusCode(404);
             }
 
-            // Create goods in record - Tanpa price
-            $goodsIn = GoodsIn::create([
-                'user_id' => $validated['user_id'],
-                'supplier_id' => $validated['supplier_id'],
-                'date_received' => $validated['date_received'],
-                'quantity' => $validated['quantity'],
-                'invoice_number' => $validated['invoice_number'],
-                'item_id' => $validated['item_id']
-            ]);
+            // Create goods in record
+            $goodsIn = new GoodsIn();
+            $goodsIn->user_id = $request->user_id;
+            $goodsIn->supplier_id = $request->supplier_id;
+            $goodsIn->date_received = $request->date_received;
+            $goodsIn->quantity = $request->quantity;
+            $goodsIn->invoice_number = $request->invoice_number;
+            $goodsIn->item_id = $request->item_id;
+            
+            $status = $goodsIn->save();
+
+            if(!$status){
+                return response()->json([
+                    "message" => __("failed to save")
+                ])->setStatusCode(400);
+            }
 
             // Update item to active
             $item->active = "true";
             $item->save();
 
-            // Get updated stock info
-            $newStock = $this->calculateCurrentStock($item->id);
-
             Log::info('Goods in transaction created', [
                 'goods_in_id' => $goodsIn->id,
                 'item_id' => $item->id,
                 'item_name' => $item->name,
-                'quantity_added' => $validated['quantity'],
-                'new_stock' => $newStock,
+                'quantity_added' => $request->quantity,
                 'user_id' => Auth::id()
             ]);
 
             DB::commit();
 
             return response()->json([
-                'success' => true,
-                'message' => __("saved successfully"),
-                'data' => [
-                    'goods_in_id' => $goodsIn->id,
-                    'item_name' => $item->name,
-                    'quantity_added' => $validated['quantity'],
-                    'new_stock' => $newStock,
-                    'unit' => $item->unit->name ?? 'Unit'
-                ]
+                "message" => __("saved successfully")
             ])->setStatusCode(200);
             
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
             return response()->json([
-                'success' => false,
                 'message' => 'Validation failed',
                 'errors' => $e->errors()
             ], 422);
@@ -166,7 +143,6 @@ class TransactionInController extends Controller
             DB::rollBack();
             Log::error('Error saving goods in: ' . $e->getMessage());
             return response()->json([
-                'success' => false,
                 'message' => 'Error saving data: ' . $e->getMessage()
             ], 500);
         }
@@ -174,66 +150,54 @@ class TransactionInController extends Controller
 
     public function detail(Request $request): JsonResponse
     {
-        try {
-            $id = $request->id;
-            $data = GoodsIn::with(['supplier', 'user', 'item.category', 'item.unit'])->find($id);
-            
-            if(!$data) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Data not found'
-                ], 404);
-            }
-            
-            $item = $data->item;
-            if(!$item) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Item not found'
-                ], 404);
-            }
-            
-            // Get current stock
-            $currentStock = $this->calculateCurrentStock($item->id);
-            
-            // Prepare response data - Tanpa price
-            $responseData = [
-                'id' => $data->id,
-                'user_id' => $data->user_id,
-                'supplier_id' => $data->supplier_id,
-                'date_received' => $data->date_received,
-                'quantity' => $data->quantity,
-                'invoice_number' => $data->invoice_number,
-                'item_id' => $data->item_id,
-                
-                // Item details
-                'kode_barang' => $item->code,
-                'nama_barang' => $item->name,
-                'satuan_barang' => $item->unit->name ?? 'Unit',
-                'jenis_barang' => $item->category->name ?? 'Category',
-                'current_stock' => $currentStock,
-                
-                // Related details
-                'supplier_name' => $data->supplier->name ?? 'Unknown',
-                'user_name' => $data->user->name ?? 'Unknown',
-                
-                // Timestamps
-                'created_at' => $data->created_at,
-                'updated_at' => $data->updated_at
-            ];
-            
+        $id = $request->id;
+        $data = GoodsIn::with(['supplier', 'user', 'item.category', 'item.unit'])->find($id);
+        
+        if(!$data) {
             return response()->json([
-                'success' => true,
-                'data' => $responseData
-            ])->setStatusCode(200);
-            
-        } catch (\Exception $e) {
-            Log::error('Error fetching goods in detail: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error fetching data: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Data not found'
+            ], 404);
         }
+        
+        $item = $data->item;
+        if(!$item) {
+            return response()->json([
+                'message' => 'Item not found'
+            ], 404);
+        }
+        
+        // Get current stock
+        $currentStock = $this->calculateCurrentStock($item->id);
+        
+        // Prepare response data
+        $responseData = [
+            'id' => $data->id,
+            'user_id' => $data->user_id,
+            'supplier_id' => $data->supplier_id,
+            'date_received' => $data->date_received,
+            'quantity' => $data->quantity,
+            'invoice_number' => $data->invoice_number,
+            'item_id' => $data->item_id,
+            
+            // Item details
+            'kode_barang' => $item->code,
+            'nama_barang' => $item->name,
+            'satuan_barang' => $item->unit->name ?? 'Unit',
+            'jenis_barang' => $item->category->name ?? 'Category',
+            'current_stock' => $currentStock,
+            
+            // Related details
+            'supplier_name' => $data->supplier->name ?? 'Unknown',
+            'user_name' => $data->user->name ?? 'Unknown',
+            
+            // Timestamps
+            'created_at' => $data->created_at,
+            'updated_at' => $data->updated_at
+        ];
+        
+        return response()->json([
+            "data" => $responseData
+        ])->setStatusCode(200);
     }
 
     public function update(Request $request): JsonResponse
@@ -241,8 +205,8 @@ class TransactionInController extends Controller
         DB::beginTransaction();
         
         try {
-            // Enhanced validation - Tanpa price
-            $validated = $request->validate([
+            // Validasi request
+            $request->validate([
                 'id' => 'required|exists:goods_in,id',
                 'user_id' => 'required|exists:users,id',
                 'supplier_id' => 'required|exists:suppliers,id',
@@ -252,67 +216,47 @@ class TransactionInController extends Controller
                 'item_id' => 'required|exists:items,id'
             ]);
 
-            $goodsIn = GoodsIn::find($validated['id']);
-            if(!$goodsIn) {
+            $id = $request->id;
+            $data = GoodsIn::find($id);
+            
+            if(!$data){
                 return response()->json([
-                    'success' => false,
-                    'message' => __("data not found")
+                    "message" => __("data not found")
                 ])->setStatusCode(404);
             }
 
             // Store old values for logging
-            $oldItemId = $goodsIn->item_id;
-            $oldQuantity = $goodsIn->quantity;
+            $oldItemId = $data->item_id;
+            $oldQuantity = $data->quantity;
 
-            // Update the record - Tanpa price
-            $goodsIn->user_id = $validated['user_id'];
-            $goodsIn->supplier_id = $validated['supplier_id'];
-            $goodsIn->date_received = $validated['date_received'];
-            $goodsIn->quantity = $validated['quantity'];
-            $goodsIn->invoice_number = $validated['invoice_number'];
-            $goodsIn->item_id = $validated['item_id'];
-            
-            $status = $goodsIn->save();
+            // Update the record
+            $data->fill($request->all());
+            $status = $data->save();
 
             if(!$status){
                 return response()->json([
-                    'success' => false,
-                    'message' => __("data failed to change")
+                    "message" => __("data failed to change")
                 ])->setStatusCode(400);
             }
 
-            // Get updated stock for response
-            $newStock = $this->calculateCurrentStock($goodsIn->item_id);
-            $item = Item::find($goodsIn->item_id);
-
             Log::info('Goods in transaction updated', [
-                'goods_in_id' => $goodsIn->id,
+                'goods_in_id' => $data->id,
                 'old_item_id' => $oldItemId,
-                'new_item_id' => $goodsIn->item_id,
+                'new_item_id' => $data->item_id,
                 'old_quantity' => $oldQuantity,
-                'new_quantity' => $goodsIn->quantity,
-                'new_stock' => $newStock,
+                'new_quantity' => $data->quantity,
                 'user_id' => Auth::id()
             ]);
 
             DB::commit();
 
             return response()->json([
-                'success' => true,
-                'message' => __("data changed successfully"),
-                'data' => [
-                    'goods_in_id' => $goodsIn->id,
-                    'item_name' => $item->name,
-                    'new_quantity' => $goodsIn->quantity,
-                    'new_stock' => $newStock,
-                    'unit' => $item->unit->name ?? 'Unit'
-                ]
+                "message" => __("data changed successfully")
             ])->setStatusCode(200);
             
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
             return response()->json([
-                'success' => false,
                 'message' => 'Validation failed',
                 'errors' => $e->errors()
             ], 422);
@@ -321,7 +265,6 @@ class TransactionInController extends Controller
             DB::rollBack();
             Log::error('Error updating goods in: ' . $e->getMessage());
             return response()->json([
-                'success' => false,
                 'message' => 'Error updating data: ' . $e->getMessage()
             ], 500);
         }
@@ -337,8 +280,7 @@ class TransactionInController extends Controller
 
             if(!$goodsIn) {
                 return response()->json([
-                    'success' => false,
-                    'message' => __("data not found")
+                    "message" => __("data not found")
                 ])->setStatusCode(404);
             }
 
@@ -351,40 +293,28 @@ class TransactionInController extends Controller
 
             if(!$status){
                 return response()->json([
-                    'success' => false,
-                    'message' => __("data failed to delete")
+                    "message" => __("data failed to delete")
                 ])->setStatusCode(400);
             }
-
-            // Get updated stock after deletion
-            $newStock = $this->calculateCurrentStock($itemId);
 
             Log::info('Goods in transaction deleted', [
                 'goods_in_id' => $id,
                 'item_id' => $itemId,
                 'item_name' => $itemName,
                 'quantity_removed' => $quantity,
-                'new_stock' => $newStock,
                 'user_id' => Auth::id()
             ]);
 
             DB::commit();
 
             return response()->json([
-                'success' => true,
-                'message' => __("data deleted successfully"),
-                'data' => [
-                    'item_name' => $itemName,
-                    'quantity_removed' => $quantity,
-                    'new_stock' => $newStock
-                ]
+                "message" => __("data deleted successfully")
             ])->setStatusCode(200);
             
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error deleting goods in: ' . $e->getMessage());
             return response()->json([
-                'success' => false,
                 'message' => 'Error deleting data: ' . $e->getMessage()
             ], 500);
         }
@@ -439,7 +369,6 @@ class TransactionInController extends Controller
             $currentStock = $this->calculateCurrentStock($itemId);
 
             return response()->json([
-                'success' => true,
                 'item' => [
                     'id' => $item->id,
                     'name' => $item->name,

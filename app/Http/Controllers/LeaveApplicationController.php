@@ -23,13 +23,22 @@ class LeaveApplicationController extends Controller
     {
         try {
             if (!$request->ajax()) {
-                return $this->errorResponse('Invalid request. Expected an AJAX request.', 400);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Request harus menggunakan AJAX'
+                ], 400);
             }
 
             $leaveApplications = LeaveApplication::with(['user', 'approver'])->latest();
 
             return DataTables::of($leaveApplications)
-                ->addColumn('actions', fn($data) => $this->buildActionButtons($data))
+                ->addColumn('actions', function($data) {
+                    // Kolom action hanya untuk employee
+                    if (Auth::user()->role->name == 'employee') {
+                        return $this->buildActionButtons($data);
+                    }
+                    return $this->buildViewOnlyButtons($data);
+                })
                 ->addColumn('status_label', fn($data) => $data->status_label)
                 ->editColumn('application_date', fn($data) => $data->application_date?->format('Y-m-d'))
                 ->editColumn('start_date', fn($data) => $data->start_date?->format('Y-m-d'))
@@ -43,59 +52,36 @@ class LeaveApplicationController extends Controller
     }
 
     public function save(Request $request): JsonResponse
-{
-    try {
-        $validated = $this->validateLeaveApplication($request);
-        
-        $leaveApplication = new LeaveApplication($validated);
-        $leaveApplication->status = 'pending';
-        $leaveApplication->user_id = Auth::id();
+    {
+        try {
+            // Pastikan hanya employee yang bisa menambah data
+            if (Auth::user()->role->name !== 'employee') {
+                return $this->errorResponse(__("Unauthorized access"), 403);
+            }
 
-        if ($request->hasFile('document')) {
-            $leaveApplication->document_path = $leaveApplication->saveDocument($request->file('document'));
+            $validated = $this->validateLeaveApplication($request);
+            
+            $leaveApplication = new LeaveApplication($validated);
+            $leaveApplication->status = 'pending';
+            $leaveApplication->user_id = Auth::id();
+
+            if ($request->hasFile('document')) {
+                $leaveApplication->document_path = $leaveApplication->saveDocument($request->file('document'));
+            }
+
+            if (!$leaveApplication->save()) {
+                return $this->errorResponse(__("Failed to save"), 400);
+            }
+
+            // Kirim email ke supervisor dengan validasi yang lebih baik
+            $this->sendEmailToSupervisor($leaveApplication);
+
+            return $this->successResponse(__("Saved successfully"));
+
+        } catch (\Exception $e) {
+            return $this->logAndReturnError('Error in save leave application', $e);
         }
-
-        if (!$leaveApplication->save()) {
-            return $this->errorResponse(__("Failed to save"), 400);
-        }
-
-        // Kirim email ke supervisor dengan validasi yang lebih baik
-        $this->sendEmailToSupervisor($leaveApplication);
-
-        return $this->successResponse(__("Saved successfully"));
-
-    } catch (\Exception $e) {
-        return $this->logAndReturnError('Error in save leave application', $e);
     }
-}
-
-// Method terpisah untuk mengirim email ke supervisor
-private function sendEmailToSupervisor(LeaveApplication $leaveApplication): void
-{
-    try {
-        $supervisorEmail = env('SUPERVISOR_EMAIL');
-        
-        if (!$supervisorEmail) {
-            Log::warning('SUPERVISOR_EMAIL not configured in .env file');
-            return;
-        }
-
-        if (!filter_var($supervisorEmail, FILTER_VALIDATE_EMAIL)) {
-            Log::error('Invalid SUPERVISOR_EMAIL format: ' . $supervisorEmail);
-            return;
-        }
-
-        Mail::to($supervisorEmail)->send(new NewLeaveApplicationMail($leaveApplication));
-        Log::info('Email sent successfully to supervisor: ' . $supervisorEmail . ' for application: ' . $leaveApplication->code);
-        
-    } catch (\Exception $e) {
-        Log::error('Failed to send email to supervisor: ' . $e->getMessage(), [
-            'application_id' => $leaveApplication->id,
-            'application_code' => $leaveApplication->code,
-            'supervisor_email' => $supervisorEmail ?? 'not set'
-        ]);
-    }
-}
 
     public function detail(Request $request): JsonResponse
     {
@@ -118,12 +104,22 @@ private function sendEmailToSupervisor(LeaveApplication $leaveApplication): void
     public function update(Request $request): JsonResponse
     {
         try {
+            // Pastikan hanya employee yang bisa mengupdate data
+            if (Auth::user()->role->name !== 'employee') {
+                return $this->errorResponse(__("Unauthorized access"), 403);
+            }
+
             $validated = $this->validateLeaveApplication($request, true);
             
             $leaveApplication = LeaveApplication::find($validated['id']);
 
             if (!$leaveApplication) {
                 return $this->errorResponse(__("Not found."), 404);
+            }
+
+            // Tambahkan pengecekan ownership - employee hanya bisa edit data miliknya sendiri
+            if ($leaveApplication->user_id !== Auth::id()) {
+                return $this->errorResponse(__("Unauthorized access"), 403);
             }
 
             if (!$leaveApplication->canBeModified()) {
@@ -151,6 +147,11 @@ private function sendEmailToSupervisor(LeaveApplication $leaveApplication): void
     public function delete(Request $request): JsonResponse
     {
         try {
+            // Pastikan hanya employee yang bisa menghapus data
+            if (Auth::user()->role->name !== 'employee') {
+                return $this->errorResponse(__("Unauthorized access"), 403);
+            }
+
             $id = $request->input('id');
             
             if (!$id) {
@@ -161,6 +162,11 @@ private function sendEmailToSupervisor(LeaveApplication $leaveApplication): void
 
             if (!$leaveApplication) {
                 return $this->errorResponse(__("Not found."), 404);
+            }
+
+            // Tambahkan pengecekan ownership - employee hanya bisa hapus data miliknya sendiri
+            if ($leaveApplication->user_id !== Auth::id()) {
+                return $this->errorResponse(__("Unauthorized access"), 403);
             }
 
             if (!$leaveApplication->canBeModified()) {
@@ -182,15 +188,44 @@ private function sendEmailToSupervisor(LeaveApplication $leaveApplication): void
 
     public function approve(Request $request): JsonResponse
     {
+        // Method ini untuk supervisor/admin - tambahkan authorization sesuai kebutuhan
         return $this->processApplication($request, 'approved', __("Cuti berhasil disetujui"));
     }
 
     public function reject(Request $request): JsonResponse
     {
+        // Method ini untuk supervisor/admin - tambahkan authorization sesuai kebutuhan
         return $this->processApplication($request, 'rejected', __("Cuti berhasil di tolak"));
     }
 
-    // PERBAIKAN: Hapus duplikasi method validateLeaveApplication
+    // Method terpisah untuk mengirim email ke supervisor
+    private function sendEmailToSupervisor(LeaveApplication $leaveApplication): void
+    {
+        try {
+            $supervisorEmail = env('SUPERVISOR_EMAIL');
+            
+            if (!$supervisorEmail) {
+                Log::warning('SUPERVISOR_EMAIL not configured in .env file');
+                return;
+            }
+
+            if (!filter_var($supervisorEmail, FILTER_VALIDATE_EMAIL)) {
+                Log::error('Invalid SUPERVISOR_EMAIL format: ' . $supervisorEmail);
+                return;
+            }
+
+            Mail::to($supervisorEmail)->send(new NewLeaveApplicationMail($leaveApplication));
+            Log::info('Email sent successfully to supervisor: ' . $supervisorEmail . ' for application: ' . $leaveApplication->code);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to send email to supervisor: ' . $e->getMessage(), [
+                'application_id' => $leaveApplication->id,
+                'application_code' => $leaveApplication->code,
+                'supervisor_email' => $supervisorEmail ?? 'not set'
+            ]);
+        }
+    }
+
     private function validateLeaveApplication(Request $request, bool $isUpdate = false): array
     {
         $rules = [
@@ -219,11 +254,27 @@ private function sendEmailToSupervisor(LeaveApplication $leaveApplication): void
     {
         $buttons = [];
         
-        if ($data->canBeModified()) {
+        // Hanya tampilkan tombol edit/delete jika data bisa dimodifikasi dan milik user yang login
+        if ($data->canBeModified() && $data->user_id === Auth::id()) {
             $buttons[] = "<button class='edit btn btn-success btn-sm m-1' data-id='{$data->id}'><i class='fas fa-pen'></i> " . __("Edit") . "</button>";
             $buttons[] = "<button class='delete btn btn-danger btn-sm m-1' data-id='{$data->id}'><i class='fas fa-trash'></i> " . __("Delete") . "</button>";
         }
         
+        $buttons[] = "<button class='detail btn btn-info btn-sm m-1' data-id='{$data->id}'><i class='fas fa-eye'></i> " . __("Detail") . "</button>";
+
+        if ($data->document_path) {
+            $documentUrl = asset('storage/' . $data->document_path);
+            $buttons[] = "<a href='{$documentUrl}' target='_blank' class='btn btn-secondary btn-sm m-1'><i class='fas fa-file-pdf'></i> " . __("View Document") . "</a>";
+        }
+
+        return implode('', $buttons);
+    }
+
+    private function buildViewOnlyButtons($data): string
+    {
+        $buttons = [];
+        
+        // Untuk role selain employee, hanya tampilkan tombol view/detail
         $buttons[] = "<button class='detail btn btn-info btn-sm m-1' data-id='{$data->id}'><i class='fas fa-eye'></i> " . __("Detail") . "</button>";
 
         if ($data->document_path) {

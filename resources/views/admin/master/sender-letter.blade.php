@@ -8,7 +8,8 @@
             <div class="card w-100">
                 <div class="card-header row">
                     <div class="d-flex justify-content-end align-items-center w-100">
-                        @if(Auth::user()->role->name != 'staff')
+                        {{-- Tombol tambah data hanya untuk employee --}}
+                        @if(Auth::user()->role->name == 'employee')
                         <button class="btn btn-success" type="button" data-toggle="modal" data-target="#TambahData" id="modal-button">
                             <i class="fas fa-plus"></i> {{__("Tambah Data")}}
                         </button>
@@ -23,22 +24,18 @@
                             <div class="modal-header">
                                 <h5 class="modal-title" id="TambahDataModalLabel">{{__('adding sender letter data')}}</h5>
                                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                    <span aria-hidden="true" onclick="clear()">&times;</span>
+                                    <span aria-hidden="true" onclick="clearForm()">&times;</span>
                                 </button>
                             </div>
                             <div class="modal-body">
+                                <input type="hidden" name="id" id="id">
                                 <div class="form-group mb-3">
-                                    <label for="name">{{__('name')}}</label>
-                                    <input type="text" class="form-control" id="name" autocomplete="off">
-                                    <input type="hidden" name="id" id="id">
+                                    <label for="from_department">{{__('asal surat')}} <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="from_department" autocomplete="off" placeholder="Masukkan asal surat">
                                 </div>
                                 <div class="form-group mb-3">
-                                    <label for="from_department">{{__('dari')}}</label>
-                                    <input type="text" class="form-control" id="from_department" autocomplete="off">
-                                </div>
-                                <div class="form-group mb-3">
-                                    <label for="destination">{{__('tujuan')}}</label>
-                                    <textarea class="form-control" id="destination"></textarea>
+                                    <label for="destination">{{__('tujuan')}} <span class="text-danger">*</span></label>
+                                    <textarea class="form-control" id="destination" rows="3" placeholder="Masukkan tujuan surat"></textarea>
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -55,10 +52,10 @@
                             <thead>
                                 <tr>
                                     <th class="border-bottom-0" width="4%">No</th>
-                                    <th class="border-bottom-0">{{__('nama')}}</th>
-                                    <th class="border-bottom-0">{{__('dari')}}</th>
+                                    <th class="border-bottom-0">{{__('asal surat')}}</th>
                                     <th class="border-bottom-0">{{__('tujuan')}}</th>
-                                    @if(Auth::user()->role->name != 'staff')
+                                    {{-- Kolom action hanya untuk employee --}}
+                                    @if(Auth::user()->role->name == 'employee')
                                     <th class="border-bottom-0" width="1%">{{__('action')}}</th>
                                     @endif
                                 </tr>
@@ -73,105 +70,164 @@
 <x-data-table/>
 
 <script>
+    // Global Variables
+    const userRole = "{{ Auth::user()->role->name }}";
+
     function isi(){
+        let columns = [
+            {
+                "data": null,
+                "sortable": false,
+                render: function(data, type, row, meta){
+                    return meta.row + meta.settings._iDisplayStart + 1;
+                }
+            },
+            {
+                data: 'from_department',
+                name: 'from_department',
+            },
+            {
+                data: 'destination',
+                name: 'destination',
+                render: function(data){
+                    if(data == null || data == ''){
+                        return "<span class='font-weight-bold text-muted'>-</span>";
+                    }
+                    return data;
+                }
+            }
+        ];
+
+        // Kolom action hanya untuk employee
+        if(userRole === 'employee'){
+            columns.push({
+                data: 'tindakan',
+                name: 'tindakan',
+                orderable: false,
+                searchable: false
+            });
+        }
+
         $('#data-tabel').DataTable({
-            responsive: true, 
-            lengthChange: true, 
+            responsive: true,
+            lengthChange: true,
             autoWidth: false,
             processing: true,
             serverSide: true,
             ajax: `{{route('sender_letter.list')}}`,
-            columns: [
-                {
-                    "data": null,
-                    "sortable": false,
-                    render: function(data, type, row, meta){
-                        return meta.row + meta.settings._iDisplayStart + 1;
-                    }
-                },
-                {
-                    data: 'name',
-                    name: 'name'
-                },
-                {
-                    data: 'from_department',
-                    name: 'from_department',
-                },
-                {
-                    data: 'destination',
-                    name: 'destination',
-                },
-                @if(Auth::user()->role->name != 'staff')
-                {
-                    data: 'tindakan',
-                    name: 'tindakan'
-                }
-                @endif
-            ]
+            columns: columns
         }).buttons().container();
     }
 
+    // Form Validation
+    function validateForm(){
+        const from_department = $("#from_department").val().trim();
+        const destination = $("#destination").val().trim();
+
+        if(!from_department){
+            showAlert('warning', 'Asal surat tidak boleh kosong!');
+            return false;
+        }
+
+        if(!destination){
+            showAlert('warning', 'Tujuan surat tidak boleh kosong!');
+            return false;
+        }
+
+        return true;
+    }
+
+    // Show Alert
+    function showAlert(type, message, timer = 1500){
+        Swal.fire({
+            position: "center",
+            icon: type,
+            title: message,
+            showConfirmButton: timer > 1500,
+            timer: timer
+        });
+    }
+
     function simpan(){
+        if(!validateForm()) return;
+
         $.ajax({
             url: `{{route('sender_letter.save')}}`,
             type: "post",
-            contentType: "application/x-www-form-urlencoded",
             data: {
-                name: $("#name").val(),
-                from_department: $("#from_department").val(),
-                destination: $("#destination").val(),
+                from_department: $("#from_department").val().trim(),
+                destination: $("#destination").val().trim(),
                 "_token": "{{csrf_token()}}"
             },
+            beforeSend: function() {
+                $('#simpan').prop('disabled', true).text('Saving...');
+            },
             success: function(res){
-                Swal.fire({
-                    position: "center",
-                    icon: "success",
-                    title: res.message,
-                    showConfirmButton: false,
-                    timer: 1500
-                });
-                $('#kembali').click();
-                $("#name").val(null);
-                $("#from_department").val(null);
-                $("#destination").val(null);
+                showAlert('success', res.message);
+                closeModal();
                 $('#data-tabel').DataTable().ajax.reload();
             },
             error: function(err){
-                console.log(err);
+                console.error(err);
+                let message = 'Terjadi kesalahan!';
+                if(err.responseJSON && err.responseJSON.message){
+                    message = err.responseJSON.message;
+                }
+                showAlert('error', message);
             },
+            complete: function() {
+                $('#simpan').prop('disabled', false).text('{{__("save")}}');
+            }
         });
     }
 
     function ubah(){
+        if(!validateForm()) return;
+
         $.ajax({
             url: `{{route('sender_letter.update')}}`,
             type: "put",
             data: {
                 id: $("#id").val(),
-                name: $("#name").val(),
-                from_department: $("#from_department").val(),
-                destination: $("#destination").val(),
+                from_department: $("#from_department").val().trim(),
+                destination: $("#destination").val().trim(),
                 "_token": "{{csrf_token()}}"
             },
+            beforeSend: function() {
+                $('#simpan').prop('disabled', true).text('Updating...');
+            },
             success: function(res){
-                Swal.fire({
-                    position: "center",
-                    icon: "success",
-                    title: res.message,
-                    showConfirmButton: false,
-                    timer: 1500
-                });
-                $('#kembali').click();
-                $("#name").val(null);
-                $("#from_department").val(null);
-                $("#destination").val(null);
+                showAlert('success', res.message);
+                closeModal();
                 $('#data-tabel').DataTable().ajax.reload();
-                $('#simpan').text("{{__('save')}}");
             },
             error: function(err){
-                console.log(err.responseJSON.text);
+                console.error(err);
+                let message = 'Terjadi kesalahan!';
+                if(err.responseJSON && err.responseJSON.message){
+                    message = err.responseJSON.message;
+                }
+                showAlert('error', message);
             },
+            complete: function() {
+                $('#simpan').prop('disabled', false).text('{{__("update")}}');
+            }
         });
+    }
+
+    // Clear Form Function
+    function clearForm(){
+        $("#id").val('');
+        $("#from_department").val('');
+        $("#destination").val('');
+        $("#simpan").text("{{__('save')}}");
+        $("#TambahDataModalLabel").text("{{__('adding sender letter data')}}");
+    }
+
+    // Close Modal
+    function closeModal(){
+        $('#kembali').click();
+        clearForm();
     }
 
     $(document).ready(function(){
@@ -186,11 +242,12 @@
         });
 
         $("#modal-button").on("click", function(){
-            $("#TambahDataModalLabel").text("{{__('adding sender letter data')}}");
-            $("#name").val(null);
-            $("#from_department").val(null);
-            $("#destination").val(null);
-            $("#simpan").text("{{__('save')}}");
+            clearForm();
+        });
+
+        // Reset modal when closed
+        $('#TambahData').on('hidden.bs.modal', function () {
+            clearForm();
         });
     });
 
@@ -199,6 +256,7 @@
         $("#modal-button").click();
         $("#TambahDataModalLabel").text("{{__('changing sender letter data')}}");
         $("#simpan").text("{{__('update')}}");
+        
         $.ajax({
             url: "{{route('sender_letter.detail')}}",
             type: "post",
@@ -206,11 +264,15 @@
                 id: id,
                 "_token": "{{csrf_token()}}"
             },
-            success: function({data}){
+            success: function(response){
+                const data = response.data;
                 $("#id").val(data.id);
-                $("#name").val(data.name);
                 $("#from_department").val(data.from_department);
-                $("#destination").val(data.destination);
+                $("#destination").val(data.destination || '');
+            },
+            error: function(err){
+                console.error(err);
+                showAlert('error', 'Gagal mengambil data!');
             }
         });
     });
@@ -224,6 +286,7 @@
             },
             buttonsStyling: false
         });
+        
         swalWithBootstrapButtons.fire({
             title: "{{__('you are sure')}} ?",
             text: "{{__('this data will be deleted')}}",
@@ -242,14 +305,16 @@
                         "_token": "{{csrf_token()}}"
                     },
                     success: function(res){
-                        Swal.fire({
-                            position: "center",
-                            icon: "success",
-                            title: res.message,
-                            showConfirmButton: false,
-                            timer: 1500
-                        });
+                        showAlert('success', res.message);
                         $('#data-tabel').DataTable().ajax.reload();
+                    },
+                    error: function(err){
+                        console.error(err);
+                        let message = 'Gagal menghapus data!';
+                        if(err.responseJSON && err.responseJSON.message){
+                            message = err.responseJSON.message;
+                        }
+                        showAlert('error', message);
                     }
                 });
             }

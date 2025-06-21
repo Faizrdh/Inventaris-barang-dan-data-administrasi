@@ -20,7 +20,8 @@ class LettersInController extends Controller
     {
         try {
             $categoryLetters = CategoryLetter::select(['id', 'name'])->get();
-            $senderLetters = SenderLetter::select(['id', 'name', 'from_department'])->get();
+            // PERBAIKAN: Hapus referensi ke name, hanya ambil id dan from_department
+            $senderLetters = SenderLetter::select(['id', 'from_department'])->get();
             
             return view('admin.master.transaksisurat.masuk', compact('categoryLetters', 'senderLetters'));
         } catch (\Exception $e) {
@@ -51,7 +52,8 @@ class LettersInController extends Controller
                     'file_type'
                 ])->with([
                     'letter:id,code,name',
-                    'senderLetter:id,name,from_department',
+                    // PERBAIKAN: Hapus referensi ke name
+                    'senderLetter:id,from_department',
                     'categoryLetter:id,name'
                 ]);
 
@@ -75,6 +77,11 @@ class LettersInController extends Controller
                         return $data->category_name;
                     })
                     ->addColumn('detail_surat', function ($data) {
+                        // Hanya employee yang bisa melihat action buttons
+                        if (Auth::user()->role->name !== 'employee') {
+                            return '<span class="text-muted">Akses terbatas untuk admin</span>';
+                        }
+
                         $html = '<div class="file-info-container">';
                         
                         // Detail Surat Header
@@ -109,11 +116,11 @@ class LettersInController extends Controller
                                 </div>';
                         }
                         
-                        // Action Buttons
+                        // Action Buttons - dengan warna hijau dan merah
                         $html .= '<div class="mb-2"><strong>Action</strong></div>';
                         $html .= '<div class="btn-group-actions">';
                         
-                        // Edit Button
+                        // Edit Button - HIJAU (btn-success)
                         $html .= '
                             <button type="button" class="btn btn-sm btn-success ubah me-1 mb-1" id="' . $data->id . '" title="Edit">
                                 <i class="fas fa-edit"></i> ubah
@@ -136,7 +143,7 @@ class LettersInController extends Controller
                                 </a>';
                         }
                         
-                        // Delete Button
+                        // Delete Button - MERAH (btn-danger)
                         $html .= '
                             <button type="button" class="btn btn-sm btn-danger hapus me-1 mb-1" id="' . $data->id . '" title="Hapus">
                                 <i class="fas fa-trash"></i> hapus
@@ -184,7 +191,8 @@ class LettersInController extends Controller
                     'file_type'
                 ])->with([
                     'categoryLetter:id,name',
-                    'senderLetter:id,name,from_department'
+                    // PERBAIKAN: Hapus referensi ke name
+                    'senderLetter:id,from_department'
                 ]);
 
                 // Filter search
@@ -201,7 +209,8 @@ class LettersInController extends Controller
                         return $data->categoryLetter ? $data->categoryLetter->name : '-';
                     })
                     ->addColumn('sender_name', function ($data) {
-                        return $data->sender_name;
+                        // PERBAIKAN: Gunakan from_department sebagai sender name
+                        return $data->senderLetter ? $data->senderLetter->from_department : ($data->from_department ?? '-');
                     })
                     ->addColumn('from_department_display', function ($data) {
                         return $data->department_name;
@@ -224,13 +233,17 @@ class LettersInController extends Controller
                         return '<span class="text-muted">-</span>';
                     })
                     ->addColumn('tindakan', function ($data) {
+                        // PERBAIKAN: Gunakan from_department sebagai sender name
+                        $senderName = $data->senderLetter ? $data->senderLetter->from_department : ($data->from_department ?? '');
+                        $department = $data->department_name;
+                        
                         return '<button type="button" class="btn btn-sm btn-primary pilih-letter" 
                                         data-id="' . $data->id . '" 
                                         data-code="' . $data->code . '" 
                                         data-name="' . htmlspecialchars($data->name) . '"
                                         data-sender-id="' . ($data->sender_letter_id ?? '') . '"
-                                        data-sender-name="' . htmlspecialchars($data->sender_name) . '"
-                                        data-department="' . htmlspecialchars($data->department_name) . '"
+                                        data-sender-name="' . htmlspecialchars($senderName) . '"
+                                        data-department="' . htmlspecialchars($department) . '"
                                         data-file-name="' . htmlspecialchars($data->file_name ?? '') . '"
                                         data-file-path="' . htmlspecialchars($data->file_path ?? '') . '"
                                         data-file-size="' . ($data->file_size ?? '') . '"
@@ -275,10 +288,14 @@ class LettersInController extends Controller
                 'from_department', 'file_name', 'file_path', 'file_size', 'file_type'
             ])->with([
                 'categoryLetter:id,name',
-                'senderLetter:id,name,from_department'
+                // PERBAIKAN: Hapus referensi ke name
+                'senderLetter:id,from_department'
             ])->where('code', $code)->first();
             
             if ($letter) {
+                // PERBAIKAN: Gunakan from_department sebagai sender name
+                $senderName = $letter->senderLetter ? $letter->senderLetter->from_department : '';
+                
                 return response()->json([
                     'success' => true,
                     'data' => [
@@ -287,7 +304,7 @@ class LettersInController extends Controller
                         'name' => $letter->name,
                         'category_name' => $letter->categoryLetter ? $letter->categoryLetter->name : null,
                         'sender_id' => $letter->sender_letter_id,
-                        'sender_name' => $letter->sender_name,
+                        'sender_name' => $senderName,
                         'from_department' => $letter->department_name,
                         'file_name' => $letter->file_name,
                         'file_path' => $letter->file_path,
@@ -313,6 +330,14 @@ class LettersInController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        // HANYA EMPLOYEE YANG BISA MENAMBAH DATA
+        if (Auth::user()->role->name !== 'employee') {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Access denied. Only employees can create letters in.'
+            ], 403);
+        }
+
         try {
             $validated = $request->validate([
                 'letter_id' => 'required|exists:letters,id',
@@ -331,6 +356,12 @@ class LettersInController extends Controller
             $letterIn = LettersIn::create(array_merge($validated, [
                 'user_id' => Auth::id()
             ]));
+
+            Log::info('Letter in created by employee', [
+                'letter_in_id' => $letterIn->id,
+                'user_id' => Auth::id(),
+                'user_role' => Auth::user()->role->name
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -361,7 +392,8 @@ class LettersInController extends Controller
                 'file_name', 'file_path', 'file_size', 'file_type'
             ])->with([
                 'letter:id,code,name',
-                'senderLetter:id,name,from_department',
+                // PERBAIKAN: Hapus referensi ke name
+                'senderLetter:id,from_department',
                 'categoryLetter:id,name'
             ])->find($request->id);
 
@@ -403,6 +435,14 @@ class LettersInController extends Controller
 
     public function update(Request $request): JsonResponse
     {
+        // HANYA EMPLOYEE YANG BISA UPDATE DATA
+        if (Auth::user()->role->name !== 'employee') {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Access denied. Only employees can update letters in.'
+            ], 403);
+        }
+
         try {
             $letterIn = LettersIn::find($request->id);
             
@@ -428,6 +468,12 @@ class LettersInController extends Controller
             ]);
 
             $letterIn->update($validated);
+
+            Log::info('Letter in updated by employee', [
+                'letter_in_id' => $letterIn->id,
+                'user_id' => Auth::id(),
+                'user_role' => Auth::user()->role->name
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -461,6 +507,12 @@ class LettersInController extends Controller
             }
 
             $letterIn->delete();
+
+            Log::info('Letter in deleted', [
+                'letter_in_id' => $request->id,
+                'user_id' => Auth::id(),
+                'user_role' => Auth::user()->role->name
+            ]);
 
             return response()->json([
                 'success' => true,

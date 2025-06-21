@@ -8,7 +8,8 @@
             <div class="card w-100">
                 <div class="card-header row">
                     <div class="d-flex justify-content-end align-items-center w-100">
-                    @if(Auth::user()->role->name != 'staff')
+                    {{-- Tombol tambah data hanya untuk employee --}}
+                    @if(Auth::user()->role->name == 'employee')
                         <button class="btn btn-success" type="button" data-toggle="modal" data-target="#TambahData" id="modal-button">
                             <i class="fas fa-plus"></i> {{ __("add data") }}
                         </button>
@@ -171,7 +172,8 @@
                                     <th class="border-bottom-0">{{ __("unit") }}</th>
                                     <th class="border-bottom-0">{{ __("brand") }}</th>
                                     <th class="border-bottom-0">{{ __("stock") }}</th>
-                                    @if(Auth::user()->role->name != 'staff')
+                                    {{-- Kolom action hanya untuk employee --}}
+                                    @if(Auth::user()->role->name == 'employee')
                                     <th class="border-bottom-0" width="1%">{{ __("action") }}</th>
                                     @endif
                                 </tr>
@@ -218,7 +220,8 @@
                 { data: 'unit_name', name: 'unit_name' },
                 { data: 'brand_name', name: 'brand_name' },
                 { data: 'quantity_formatted', name: 'quantity_formatted' },
-                @if(Auth::user()->role->name != 'staff')
+                {{-- Kolom action hanya untuk employee --}}
+                @if(Auth::user()->role->name == 'employee')
                 { data: 'tindakan', name: 'tindakan' }
                 @endif
             ]
@@ -267,7 +270,9 @@
         const formData = new FormData();
         const image = $("#GetFile")[0].files;
         
-        formData.append('image', image[0]);
+        if(image.length > 0) {
+            formData.append('image', image[0]);
+        }
         formData.append('code', $("input[name='kode']").val());
         formData.append('name', $("input[name='nama']").val());
         formData.append('category_id', $("select[name='jenisbarang']").val());
@@ -310,7 +315,8 @@
             },
             error: function(err){
                 console.error(err);
-                showAlert('error', 'Terjadi kesalahan!');
+                const message = err.responseJSON?.message || 'Terjadi kesalahan!';
+                showAlert('error', message);
             }
         });
     }
@@ -443,7 +449,8 @@
                     id: id,
                     "_token": "{{csrf_token()}}"
                 },
-                success: function({data}){
+                success: function(response){
+                    const data = response.data;
                     $("input[name='id']").val(data.id);
                     $("input[name='nama']").val(data.name);
                     $("input[name='kode']").val(data.code);
@@ -458,7 +465,8 @@
                 },
                 error: function(err){
                     console.error(err);
-                    showAlert('error', 'Gagal mengambil data!');
+                    const message = err.responseJSON?.message || 'Gagal mengambil data!';
+                    showAlert('error', message);
                 }
             });
         });

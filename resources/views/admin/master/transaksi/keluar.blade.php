@@ -8,10 +8,17 @@
             <div class="card w-100">
                 <div class="card-header row">
                     <div class="d-flex justify-content-end align-items-center w-100">
-                        <button class="btn {{$in_status!=0?'btn-success':'btn-danger'}}" type="button" data-toggle="modal" {{$in_status!=0?'data-target="#TambahData"':'data-target="alert"'}} id="modal-button"><i class="fas fa-plus m-1"></i> {{__('add data')}}</button>
+                        {{-- Tombol tambah data hanya untuk employee --}}
+                        @if(Auth::user()->role->name == 'employee')
+                        <button class="btn {{$in_status!=0?'btn-success':'btn-danger'}}" type="button" data-toggle="modal" {{$in_status!=0?'data-target="#TambahData"':'data-target="alert"'}} id="modal-button">
+                            <i class="fas fa-plus m-1"></i> {{__('add data')}}
+                        </button>
+                        @endif
                     </div>
                 </div>
 
+                {{-- Modal hanya ditampilkan untuk employee --}}
+                @if(Auth::user()->role->name == 'employee')
                 <!-- Modal Barang -->
                 <div class="modal fade" id="modal-barang" data-backdrop="static" data-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
                     <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -124,6 +131,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
 
                 <div class="card-body">
                     <div class="table-responsive">
@@ -138,7 +146,10 @@
                                     <th class="border-bottom-0">{{__("item")}}</th>
                                     <th class="border-bottom-0">{{__("outgoing amount")}}</th>
                                     <th class="border-bottom-0">{{__("current stock")}}</th>
+                                    {{-- Kolom action hanya untuk employee --}}
+                                    @if(Auth::user()->role->name == 'employee')
                                     <th class="border-bottom-0" width="1%">{{__("action")}}</th>
+                                    @endif
                                 </tr>
                             </thead>
                         </table>
@@ -149,13 +160,20 @@
     </div>
 </div>
 <x-data-table/>
+
 <script>
+    // Setup CSRF token untuk AJAX
     $.ajaxSetup({
         headers: {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         }
     });
 
+    // Kirim role user ke JS
+    const userRole = "{{ Auth::user()->role->name }}";
+
+    // Function untuk load modal barang (hanya untuk employee)
+    @if(Auth::user()->role->name == 'employee')
     function loadModalBarang() {
         $('#data-barang').DataTable({
             lengthChange: true,
@@ -180,10 +198,74 @@
             ]
         });
     }
+    @endif
+
+    function isi(){
+        let columns = [
+            {
+                "data": null,
+                "sortable": false,
+                render: function(data, type, row, meta){
+                    return meta.row + meta.settings._iDisplayStart + 1;
+                }
+            },
+            {
+                data: "date_out_formatted",
+                name: "date_out"
+            },
+            {
+                data: "invoice_number",
+                name: "invoice_number"
+            },
+            {
+                data: "kode_barang",
+                name: "kode_barang"
+            },
+            {
+                data: "customer_name",
+                name: "customer_name"
+            },
+            {
+                data: "item_name",
+                name: "item_name"
+            },
+            {
+                data: "quantity_formatted",
+                name: "quantity"
+            },
+            {
+                data: "current_stock",
+                name: "current_stock"
+            }
+        ];
+
+        // Kolom action hanya untuk employee
+        if(userRole === 'employee'){
+            columns.push({
+                data: 'tindakan',
+                name: 'tindakan',
+                orderable: false,
+                searchable: false
+            });
+        }
+
+        $('#data-tabel').DataTable({
+            responsive: true,
+            lengthChange: true,
+            autoWidth: false,
+            processing: true,
+            serverSide: true,
+            ajax: `{{route('transaksi.keluar.list')}}`,
+            columns: columns
+        });
+    }
 
     $(document).ready(function() {
+        // Load modal barang hanya untuk employee
+        @if(Auth::user()->role->name == 'employee')
         loadModalBarang();
 
+        // Event handler untuk pilih barang (hanya employee)
         $(document).on("click", ".pilih-data-barang", function() {
             let id = $(this).data("id");
             $.ajax({
@@ -215,25 +297,13 @@
                 }
             });
         });
+        @endif
 
-        $('#data-tabel').DataTable({
-            lengthChange: true,
-            processing: true,
-            serverSide: true,
-            ajax: `{{route('transaksi.keluar.list')}}`,
-            columns: [
-                { "data": null, "sortable": false, render: function(data, type, row, meta) { return meta.row + meta.settings._iDisplayStart + 1; } },
-                { data: "date_out_formatted", name: "date_out" },
-                { data: "invoice_number", name: "invoice_number" },
-                { data: "kode_barang", name: "kode_barang" },
-                { data: "customer_name", name: "customer_name" },
-                { data: "item_name", name: "item_name" },
-                { data: "quantity_formatted", name: "quantity" },
-                { data: "current_stock", name: "current_stock" },
-                { data: "tindakan", name: "tindakan" }
-            ]
-        });
+        // Load data tabel
+        isi();
 
+        // Event handlers hanya untuk employee
+        @if(Auth::user()->role->name == 'employee')
         $("#barang").on("click", function() {
             $('#modal-barang').modal('show');
             $('#TambahData').modal('hide');
@@ -247,7 +317,7 @@
         $("#cari-barang").on("click", detail);
 
         $('#simpan').on('click', function() {
-            if ($(this).text().includes('Perubahan')) {
+            if ($(this).text().includes('Perubahan') || $(this).text().includes('Changes')) {
                 processUpdate();
             } else {
                 checkStockBeforeSave();
@@ -309,8 +379,127 @@
         $("input[name='tanggal_keluar']").on('change', function() {
             checkCurrentStock();
         });
+
+        // Event handler untuk edit (hanya employee)
+        $(document).on("click", ".ubah", function() {
+            $("#modal-button").click();
+            $('#TambahDataModalLabel').text("{{__('edit outgoing transaction')}}");
+            $("#simpan").text("{{__('save')}} Changes");
+
+            let id = $(this).attr('id');
+            $.ajax({
+                url: "{{route('transaksi.keluar.info')}}",
+                type: "post",
+                data: { id: id, "_token": "{{csrf_token()}}" },
+                success: function({data}) {
+                    $("input[name='id']").val(data.id);
+                    $("input[name='kode']").val(data.invoice_number);
+                    $("input[name='id_barang']").val(data.item_id);
+                    $("select[name='customer']").val(data.customer_id);
+                    $("input[name='nama_barang']").val(data.nama_barang);
+                    $("input[name='tanggal_keluar']").val(data.date_out);
+                    $("input[name='kode_barang']").val(data.kode_barang);
+                    $("input[name='jenis_barang']").val(data.jenis_barang);
+                    $("input[name='satuan_barang']").val(data.satuan_barang);
+                    $("input[name='jumlah']").val(data.quantity);
+
+                    checkCurrentStock();
+                },
+                error: function(err) {
+                    console.log(err);
+                    Swal.fire({
+                        position: "center",
+                        icon: "error",
+                        title: "Error",
+                        text: "Gagal mengambil data",
+                        showConfirmButton: true
+                    });
+                }
+            });
+        });
+        @endif
+
+        // Event handler untuk hapus (untuk semua role yang memiliki akses)
+        $(document).on("click", ".hapus", function() {
+            let id = $(this).attr('id');
+            
+            Swal.fire({
+                title: 'Apakah Anda yakin?',
+                text: "Data yang dihapus tidak dapat dikembalikan!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Ya, hapus!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Menghapus...',
+                        text: 'Mohon tunggu',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        allowEnterKey: false,
+                        showConfirmButton: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    $.ajax({
+                        url: "{{route('transaksi.keluar.hapus')}}",
+                        type: "DELETE",
+                        data: { 
+                            id: id,
+                            "_token": "{{csrf_token()}}" 
+                        },
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.success) {
+                                Swal.fire({
+                                    position: "center",
+                                    icon: "success",
+                                    title: "Berhasil!",
+                                    text: response.message || "Data berhasil dihapus",
+                                    showConfirmButton: false,
+                                    timer: 1500
+                                });
+                                
+                                $('#data-tabel').DataTable().ajax.reload();
+                            } else {
+                                Swal.fire({
+                                    position: "center",
+                                    icon: "error",
+                                    title: "Gagal!",
+                                    text: response.message || "Gagal menghapus data",
+                                    showConfirmButton: true
+                                });
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.log('Error:', xhr.responseText);
+                            
+                            let message = 'Terjadi kesalahan saat menghapus data';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                message = xhr.responseJSON.message;
+                            }
+                            
+                            Swal.fire({
+                                position: "center",
+                                icon: "error",
+                                title: "Error!",
+                                text: message,
+                                showConfirmButton: true
+                            });
+                        }
+                    });
+                }
+            });
+        });
     });
 
+    // Functions khusus untuk employee
+    @if(Auth::user()->role->name == 'employee')
     function detail() {
         const kode_barang = $("input[name='kode_barang']").val();
         if (!kode_barang) return;
@@ -495,7 +684,7 @@
                 } else if (xhr.responseJSON && xhr.responseJSON.errors) {
                     const errors = xhr.responseJSON.errors;
                     message = Object.values(errors).flat().join('\n');
-                    console.log('Validation Errors:', errors); // Debugging
+                    console.log('Validation Errors:', errors);
                 }
 
                 Swal.fire({
@@ -509,215 +698,100 @@
         });
     }
 
- $(document).on("click", ".hapus", function() {
-    let id = $(this).attr('id');
-    
-    Swal.fire({
-        title: 'Apakah Anda yakin?',
-        text: "Data yang dihapus tidak dapat dikembalikan!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Ya, hapus!',
-        cancelButtonText: 'Batal'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Tampilkan loading
-            Swal.fire({
-                title: 'Menghapus...',
-                text: 'Mohon tunggu',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                allowEnterKey: false,
-                showConfirmButton: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
+    function processUpdate() {
+        const id = $("input[name='id']").val();
+        const item_id = $("input[name='id_barang']").val();
+        const user_id = `{{Auth::user()->id}}`;
+        const date_out = $("input[name='tanggal_keluar']").val();
+        const customer_id = $("select[name='customer']").val();
+        const invoice_number = $("input[name='kode']").val();
+        const quantity = $("input[name='jumlah']").val();
 
-            $.ajax({
-                url: "{{route('transaksi.keluar.hapus')}}",
-                type: "DELETE", // Ubah dari POST ke DELETE sesuai routing
-                data: { 
-                    id: id, // Kirim ID melalui data karena controller menggunakan $request->id
-                    "_token": "{{csrf_token()}}" 
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.success) {
-                        Swal.fire({
-                            position: "center",
-                            icon: "success",
-                            title: "Berhasil!",
-                            text: response.message || "Data berhasil dihapus",
-                            showConfirmButton: false,
-                            timer: 1500
-                        });
-                        
-                        // Reload DataTable
-                        $('#data-tabel').DataTable().ajax.reload();
-                    } else {
-                        Swal.fire({
-                            position: "center",
-                            icon: "error",
-                            title: "Gagal!",
-                            text: response.message || "Gagal menghapus data",
-                            showConfirmButton: true
-                        });
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.log('Error:', xhr.responseText);
-                    
-                    let message = 'Terjadi kesalahan saat menghapus data';
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        message = xhr.responseJSON.message;
-                    }
-                    
-                    Swal.fire({
-                        position: "center",
-                        icon: "error",
-                        title: "Error!",
-                        text: message,
-                        showConfirmButton: true
-                    });
-                }
-            });
-        }
-    });
-});
-
-function processUpdate() {
-    const id = $("input[name='id']").val();
-    const item_id = $("input[name='id_barang']").val();
-    const user_id = `{{Auth::user()->id}}`;
-    const date_out = $("input[name='tanggal_keluar']").val();
-    const customer_id = $("select[name='customer']").val();
-    const invoice_number = $("input[name='kode']").val();
-    const quantity = $("input[name='jumlah']").val();
-
-    if (!id || !item_id || !date_out || !quantity || !customer_id || !invoice_number) {
-        Swal.fire({
-            position: "center",
-            icon: "warning",
-            title: "Data Tidak Lengkap",
-            text: "Mohon lengkapi semua data terlebih dahulu",
-            showConfirmButton: true
-        });
-        return;
-    }
-
-    const Form = new FormData();
-    Form.append('id', id);
-    Form.append('user_id', user_id);
-    Form.append('item_id', item_id);
-    Form.append('date_out', date_out);
-    Form.append('quantity', quantity);
-    Form.append('customer_id', customer_id);
-    Form.append('invoice_number', invoice_number);
-    Form.append('_token', '{{csrf_token()}}');
-    Form.append('_method', 'PUT'); // Tambahkan method PUT untuk update
-
-    $.ajax({
-        url: `{{route('transaksi.keluar.ubah')}}`,
-        type: "post", // Laravel akan menggunakan PUT karena _method
-        processData: false,
-        contentType: false,
-        dataType: 'json',
-        data: Form,
-        success: function(res) {
-            Swal.fire({
-                position: "center",
-                icon: "success",
-                title: res.message,
-                showConfirmButton: false,
-                timer: 1500
-            });
-            $('#kembali').click();
-            resetForm();
-            $('#data-tabel').DataTable().ajax.reload();
-        },
-        error: function(xhr) {
-            let message = 'Error updating data';
-            if (xhr.responseJSON && xhr.responseJSON.message) {
-                message = xhr.responseJSON.message;
-            } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                const errors = xhr.responseJSON.errors;
-                message = Object.values(errors).flat().join('\n');
-            }
-
+        if (!id || !item_id || !date_out || !quantity || !customer_id || !invoice_number) {
             Swal.fire({
                 position: "center",
                 icon: "warning",
-                title: "Oops...",
-                text: message,
+                title: "Data Tidak Lengkap",
+                text: "Mohon lengkapi semua data terlebih dahulu",
                 showConfirmButton: true
             });
+            return;
         }
-    });
-}
 
-function resetForm() {
-    $("input[name='id']").val('');
-    $("input[name='kode']").val('');
-    $("input[name='id_barang']").val('');
-    $("input[name='kode_barang']").val('');
-    $("input[name='nama_barang']").val('');
-    $("input[name='satuan_barang']").val('');
-    $("input[name='jenis_barang']").val('');
-    $("input[name='jumlah']").val('');
-    $("input[name='tanggal_keluar']").val(new Date().toISOString().split('T')[0]);
-    $("select[name='customer']").val('');
-    $('#stock-info').html('');
-    $("input[name='jumlah']").removeClass('is-invalid');
-    $('.stock-error').remove();
-}
+        const Form = new FormData();
+        Form.append('id', id);
+        Form.append('user_id', user_id);
+        Form.append('item_id', item_id);
+        Form.append('date_out', date_out);
+        Form.append('quantity', quantity);
+        Form.append('customer_id', customer_id);
+        Form.append('invoice_number', invoice_number);
+        Form.append('_token', '{{csrf_token()}}');
+        Form.append('_method', 'PUT');
 
-function resetBarangForm() {
-    $("input[name='kode_barang']").val('');
-    $("input[name='nama_barang']").val('');
-    $("input[name='satuan_barang']").val('');
-    $("input[name='jenis_barang']").val('');
-    $("input[name='id_barang']").val('');
-    $('#stock-info').html('');
-}
-
-    $(document).on("click", ".ubah", function() {
-        $("#modal-button").click();
-        $('#TambahDataModalLabel').text("{{__('edit outgoing transaction')}}");
-        $("#simpan").text("{{__('save changes')}}");
-
-        let id = $(this).attr('id');
         $.ajax({
-            url: "{{route('transaksi.keluar.info')}}",
+            url: `{{route('transaksi.keluar.ubah')}}`,
             type: "post",
-            data: { id: id, "_token": "{{csrf_token()}}" },
-            success: function({data}) {
-                $("input[name='id']").val(data.id);
-                $("input[name='kode']").val(data.invoice_number);
-                $("input[name='id_barang']").val(data.item_id);
-                $("select[name='customer']").val(data.customer_id);
-                $("input[name='nama_barang']").val(data.nama_barang);
-                $("input[name='tanggal_keluar']").val(data.date_out);
-                $("input[name='kode_barang']").val(data.kode_barang);
-                $("input[name='jenis_barang']").val(data.jenis_barang);
-                $("input[name='satuan_barang']").val(data.satuan_barang);
-                $("input[name='jumlah']").val(data.quantity);
-
-                checkCurrentStock();
-            },
-            error: function(err) {
-                console.log(err);
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            data: Form,
+            success: function(res) {
                 Swal.fire({
                     position: "center",
-                    icon: "error",
-                    title: "Error",
-                    text: "Gagal mengambil data",
+                    icon: "success",
+                    title: res.message,
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+                $('#kembali').click();
+                resetForm();
+                $('#data-tabel').DataTable().ajax.reload();
+            },
+            error: function(xhr) {
+                let message = 'Error updating data';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                    const errors = xhr.responseJSON.errors;
+                    message = Object.values(errors).flat().join('\n');
+                }
+
+                Swal.fire({
+                    position: "center",
+                    icon: "warning",
+                    title: "Oops...",
+                    text: message,
                     showConfirmButton: true
                 });
             }
         });
-    });
+    }
+
+    function resetForm() {
+        $("input[name='id']").val('');
+        $("input[name='kode']").val('');
+        $("input[name='id_barang']").val('');
+        $("input[name='kode_barang']").val('');
+        $("input[name='nama_barang']").val('');
+        $("input[name='satuan_barang']").val('');
+        $("input[name='jenis_barang']").val('');
+        $("input[name='jumlah']").val('');
+        $("input[name='tanggal_keluar']").val(new Date().toISOString().split('T')[0]);
+        $("select[name='customer']").val('');
+        $('#stock-info').html('');
+        $("input[name='jumlah']").removeClass('is-invalid');
+        $('.stock-error').remove();
+    }
+
+    function resetBarangForm() {
+        $("input[name='kode_barang']").val('');
+        $("input[name='nama_barang']").val('');
+        $("input[name='satuan_barang']").val('');
+        $("input[name='jenis_barang']").val('');
+        $("input[name='id_barang']").val('');
+        $('#stock-info').html('');
+    }
+    @endif
 </script>
 @endsection

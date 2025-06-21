@@ -84,14 +84,9 @@ class LettersIn extends Model
             return $this->sender_name;
         }
         
-        // Fallback ke relasi sender_letter
-        if ($this->senderLetter) {
-            return $this->senderLetter->name;
-        }
-        
-        // Fallback ke relasi letter -> sender_letter
+        // Fallback ke relasi letter -> sender_letter (HAPUS referensi name)
         if ($this->letter && $this->letter->senderLetter) {
-            return $this->letter->senderLetter->name;
+            return $this->letter->senderLetter->from_department ?? 'Unknown Sender';
         }
         
         return '-';
@@ -225,7 +220,8 @@ class LettersIn extends Model
                     // Auto populate sender info jika belum ada
                     if (!$model->sender_name && !$model->from_department) {
                         if ($letter->senderLetter) {
-                            $model->sender_name = $letter->senderLetter->name;
+                            // HAPUS referensi ke name, gunakan from_department sebagai fallback
+                            $model->sender_name = $letter->senderLetter->from_department ?? 'Unknown Sender';
                             $model->from_department = $letter->senderLetter->from_department ?? $letter->from_department;
                         }
                     }
@@ -245,8 +241,9 @@ class LettersIn extends Model
                 $senderLetter = SenderLetter::find($model->sender_letter_id);
                 
                 if ($senderLetter) {
+                    // HAPUS referensi ke name, gunakan from_department
                     if (!$model->sender_name) {
-                        $model->sender_name = $senderLetter->name;
+                        $model->sender_name = $senderLetter->from_department ?? 'Unknown Sender';
                     }
                     if (!$model->from_department) {
                         $model->from_department = $senderLetter->from_department;

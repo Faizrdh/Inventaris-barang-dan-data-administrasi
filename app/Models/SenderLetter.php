@@ -12,7 +12,6 @@ class SenderLetter extends Model
     protected $table = 'sender_letters';
     
     protected $fillable = [
-        'name',
         'from_department', 
         'destination'
     ];

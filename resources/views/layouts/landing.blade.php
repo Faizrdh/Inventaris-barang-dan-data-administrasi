@@ -197,7 +197,10 @@
       <div class="d-flex justify-content-between align-items-center">
        <div class="d-flex align-items-center">
     <img src="{{ asset('yankes.png') }}" alt="Logo" class="logo-img" style="width: 80px; height: auto;">
-    <h1 class="mb-0 font-weight-bold">SIsINV</h1>
+      <div class="ms-3 text-white">
+          <h1 class="mb-0 font-weight-bold" style="font-size: 28px;">SIMADA</h1>
+          <p class="mb-0" style="font-size: 18px;">Sistem Informasi Manajemen Administrasi & Inventaris</p>
+        </div>
 </div>
 
         <div>
@@ -212,8 +215,8 @@
   <!-- Hero Section -->
   <section class="hero-section text-center">
     <div class="container">
-      <h1 class="hero-title">Sistem Inventaris & Pengajuan Cuti</h1>
-      <p class="hero-subtitle">Kelola inventaris, dan pengajuan cuti dengan lebih mudah dan terstruktur dalam satu platform</p>
+      <h1 class="hero-title">Sistem Informasi Manajemen Administrasi & Inventaris</h1>
+      <p class="hero-subtitle">Kelola inventaris, dan data administrasi dengan lebih mudah dan terstruktur dalam satu platform</p>
     </div>
   </section>
 
@@ -245,7 +248,7 @@
             <div class="feature-icon">
               <i class="fas fa-chart-bar"></i>
             </div>
-            <h4>Laporan & analitik</h4>
+            <h4>Pelaporan</h4>
             <p>Dapatkan insight untuk pengambilan keputusan dari data inventaris, pengajuan cuti dan laporan yang komprehensif</p>
           </div>
         </div>
@@ -274,7 +277,7 @@
             @forelse($leaveApplications as $key => $application)
             <tr>
               <td>{{ $key + 1 }}</td>
-              <td>{{ $application->name }}</td> {{-- PERBAIKAN: Ganti employee_name menjadi name --}}
+              <td>{{ $application->name }}</td> 
               <td>{{ $application->employee_id }}</td>
               <td>{{ $application->leave_type }}</td>
               <td>{{ $application->start_date ? $application->start_date->format('Y-m-d') : '-' }}</td> {{-- PERBAIKAN: Handle null date --}}

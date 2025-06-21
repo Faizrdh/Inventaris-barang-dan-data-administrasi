@@ -56,6 +56,11 @@ class LettersOutController extends Controller
                         return $data->letter_name;
                     })
                     ->addColumn('detail_file', function ($data) {
+                        // Hanya employee yang bisa melihat action buttons
+                        if (Auth::user()->role->name !== 'employee') {
+                            return '<span class="text-muted">Akses terbatas untuk admin</span>';
+                        }
+
                         $html = '<div class="file-info-container">';
                         
                         if ($data->hasFile()) {
@@ -105,16 +110,16 @@ class LettersOutController extends Controller
                                 </div>';
                         }
                         
-                        // Action Buttons untuk data
+                        // Action Buttons untuk data - dengan warna hijau dan merah
                         $html .= '<div class="btn-group-actions">';
                         
-                        // Edit Button
+                        // Edit Button - HIJAU (btn-success)
                         $html .= '
                             <button type="button" class="btn btn-sm btn-success ubah me-1 mb-1" id="' . $data->id . '" title="Edit">
                                 <i class="fas fa-edit"></i> Edit
                             </button>';
                         
-                        // Delete Button
+                        // Delete Button - MERAH (btn-danger)
                         $html .= '
                             <button type="button" class="btn btn-sm btn-danger hapus me-1 mb-1" id="' . $data->id . '" title="Hapus">
                                 <i class="fas fa-trash"></i> Hapus
@@ -284,6 +289,14 @@ class LettersOutController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        // HANYA EMPLOYEE YANG BISA MENAMBAH DATA
+        if (Auth::user()->role->name !== 'employee') {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Access denied. Only employees can create letters out.'
+            ], 403);
+        }
+
         try {
             // UPDATE: Tambahkan validasi untuk kolom tujuan
             $validated = $request->validate([
@@ -302,6 +315,12 @@ class LettersOutController extends Controller
             $letterOut = LettersOut::create(array_merge($validated, [
                 'user_id' => Auth::id()
             ]));
+
+            Log::info('Letter out created by employee', [
+                'letter_out_id' => $letterOut->id,
+                'user_id' => Auth::id(),
+                'user_role' => Auth::user()->role->name
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -371,6 +390,14 @@ class LettersOutController extends Controller
 
     public function update(Request $request): JsonResponse
     {
+        // HANYA EMPLOYEE YANG BISA UPDATE DATA
+        if (Auth::user()->role->name !== 'employee') {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Access denied. Only employees can update letters out.'
+            ], 403);
+        }
+
         try {
             $letterOut = LettersOut::find($request->id);
             
@@ -396,6 +423,12 @@ class LettersOutController extends Controller
             ]);
 
             $letterOut->update($validated);
+
+            Log::info('Letter out updated by employee', [
+                'letter_out_id' => $letterOut->id,
+                'user_id' => Auth::id(),
+                'user_role' => Auth::user()->role->name
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -429,6 +462,12 @@ class LettersOutController extends Controller
             }
 
             $letterOut->delete();
+
+            Log::info('Letter out deleted', [
+                'letter_out_id' => $request->id,
+                'user_id' => Auth::id(),
+                'user_role' => Auth::user()->role->name
+            ]);
 
             return response()->json([
                 'success' => true,

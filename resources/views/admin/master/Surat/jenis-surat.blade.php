@@ -8,7 +8,8 @@
             <div class="card w-100">
                 <div class="card-header row">
                     <div class="d-flex justify-content-end align-items-center w-100">
-                        @if(Auth::user()->role->name != 'staff')
+                        {{-- Tombol tambah data hanya untuk employee --}}
+                        @if(Auth::user()->role->name == 'employee')
                         <button class="btn btn-success" type="button" data-toggle="modal" data-target="#TambahData" id="modal-button">
                             <i class="fas fa-plus"></i> {{ __("add data") }}
                         </button>
@@ -53,7 +54,8 @@
                                     <th class="border-bottom-0" width="8%">{{ __("no") }}</th>
                                     <th class="border-bottom-0">{{ __("name") }}</th>
                                     <th class="border-bottom-0">{{ __("description") }}</th>
-                                    @if(Auth::user()->role->name != 'staff')
+                                    {{-- Kolom action hanya untuk employee --}}
+                                    @if(Auth::user()->role->name == 'employee')
                                     <th class="border-bottom-0" width="20%">{{ __("action") }}</th>
                                     @endif
                                 </tr>
@@ -96,7 +98,8 @@
             }
         ];
 
-        if(userRole !== 'staff'){
+        // Kolom action hanya untuk employee
+        if(userRole === 'employee'){
             columns.push({
                 data: 'tindakan',
                 name: 'tindakan',
@@ -121,7 +124,7 @@
             return Swal.fire({
                 position: "center",
                 icon: "warning",
-                title: "Name cannot be empty!",
+                title: "Nama tidak boleh kosong!",
                 showConfirmButton: false,
                 timer: 1500
             });
@@ -175,7 +178,7 @@
             return Swal.fire({
                 position: "center",
                 icon: "warning",
-                title: "Name cannot be empty!",
+                title: "nama tidak boleh kosong!",
                 showConfirmButton: false,
                 timer: 1500
             });

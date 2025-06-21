@@ -137,12 +137,12 @@
               <div class="inner">
                 <h3>{{$supplier}}</h3>
 
-                <p class="font-weight-bold">{{ __("supplier") }}</p>
+                <p class="font-weight-bold">{{ __("Distributor") }}</p>
               </div>
               <div class="icon">
                 <i class="fas fa-shipping-fast"></i>
               </div>
-              <a href="{{route('customer')}}" class="small-box-footer">{{ __('messages.more-info') }} <i class="fas fa-arrow-circle-right"></i></a>
+              <a href="{{route('supplier')}}" class="small-box-footer">{{ __('messages.more-info') }} <i class="fas fa-arrow-circle-right"></i></a>
             </div>
           </div>
 

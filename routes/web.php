@@ -33,7 +33,7 @@ use App\Http\Controllers\LettersInController;
 use App\Http\Controllers\LettersOutController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportLettersOutController;
-
+use App\Http\Controllers\ReturnController;
 
 Route::middleware(["localization"])->group(function(){
     // Jadikan LandingPage sebagai halaman utama
@@ -310,12 +310,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/process', [LeaveValidationController::class, 'process'])->name('process');
     });
 });
-
-    //pengembalian return
-    Route::get('/return', [App\Http\Controllers\ReturnController::class, 'index'])->name('return.index');
-    Route::post('/return/save', [App\Http\Controllers\ReturnController::class, 'save'])->name('return.save');
-    Route::get('/return/{id}/edit', [App\Http\Controllers\ReturnController::class, 'edit'])->name('return.edit');
-    Route::put('/return/{id}', [App\Http\Controllers\ReturnController::class, 'update'])->name('return.update');
-    Route::delete('/return/{id}', [App\Http\Controllers\ReturnController::class, 'delete'])->name('return.delete');
+Route::get('/returns', [ReturnController::class, 'index'])->name('return.index');
+Route::get('/returns/list', [ReturnController::class, 'list'])->name('return.list');
+Route::post('/returns/save', [ReturnController::class, 'save'])->name('return.save');
+Route::post('/returns/detail', [ReturnController::class, 'detail'])->name('return.detail');
+Route::put('/returns/update', [ReturnController::class, 'update'])->name('return.update');
+Route::delete('/returns/delete', [ReturnController::class, 'delete'])->name('return.delete');
 ;
 

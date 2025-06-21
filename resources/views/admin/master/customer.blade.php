@@ -8,12 +8,12 @@
             <div class="card w-100">
                 <div class="card-header row">
                     <div class="d-flex justify-content-end align-items-center w-100">
-                        @if(Auth::user()->role->name != 'staff')
+                        {{-- Tombol tambah data hanya untuk employee --}}
+                        @if(Auth::user()->role->name == 'employee')
                         <button class="btn btn-success" type="button"  data-toggle="modal" data-target="#TambahData" id="modal-button"><i class="fas fa-plus"></i> {{__("add customers")}}</button>
                         @endif
                     </div>
                 </div>
-
 
                 <!-- Modal -->
                 <div class="modal fade" id="TambahData" tabindex="-1" aria-labelledby="TambahDataModalLabel" aria-hidden="true">
@@ -22,22 +22,22 @@
                         <div class="modal-header">
                             <h5 class="modal-title" id="TambahDataModalLabel">{{__('adding customer data')}}</h5>
                             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true" onclick="clear()" >&times;</span>
+                            <span aria-hidden="true" onclick="clearForm()">&times;</span>
                             </button>
                         </div>
                         <div class="modal-body">
                             <div class="form-group mb-3">
-                                <label for="name">{{__('name')}}</label>
-                                <input type="text" class="form-control" id="name" autocomplete="off">
+                                <label for="name">{{__('name')}} <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" autocomplete="off" placeholder="Masukkan nama customer">
                                 <input type="hidden" name="id" id="id">
                             </div>
                             <div class="form-group mb-3">
-                                <label for="phone_number">{{__('phone number')}}</label>
-                                <input type="text" class="form-control" id="phone_number" autocomplete="off">
+                                <label for="phone_number">{{__('phone number')}} <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="phone_number" autocomplete="off" placeholder="Masukkan nomor telepon">
                             </div>
                             <div class="form-group mb-3">
                                 <label for="address">{{__('address')}}</label>
-                                <textarea class="form-control" id="address"></textarea>
+                                <textarea class="form-control" id="address" rows="3" placeholder="Masukkan alamat customer"></textarea>
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -57,7 +57,8 @@
                                     <th class="border-bottom-0">{{__('name')}}</th>
                                     <th class="border-bottom-0">{{__('phone number')}}</th>
                                     <th class="border-bottom-0">{{__('address')}}</th>
-                                    @if(Auth::user()->role->name != 'staff')
+                                    {{-- Kolom action hanya untuk employee --}}
+                                    @if(Auth::user()->role->name == 'employee')
                                     <th class="border-bottom-0" width="1%">{{__('action')}}</th>
                                     @endif
                                 </tr>
@@ -71,154 +72,222 @@
 </div>
 <x-data-table/>
 <script>
+    // Global Variables
+    const userRole = "{{ Auth::user()->role->name }}";
+
     function isi(){
-        $('#data-tabel').DataTable({
-            responsive: true, lengthChange: true, autoWidth: false,
-            processing:true,
-            serverSide:true,
-            ajax:`{{route('customer.list')}}`,
-            columns:[
-                {
-                    "data":null,"sortable":false,
-                    render:function(data,type,row,meta){
-                        return meta.row + meta.settings._iDisplayStart+1;
-                    }
-                },
-                {
-                    data:'name',
-                    name:'name'
-                },
-                {
-                    data:'phone_number',
-                    name:'phone_number',
-                },
-                {
-                    data:'address',
-                    name:'address',
-                },
-                @if(Auth::user()->role->name != 'staff')
-                {
-                    data:'tindakan',
-                    name:'tindakan'
+        let columns = [
+            {
+                "data": null,
+                "sortable": false,
+                render: function(data, type, row, meta){
+                    return meta.row + meta.settings._iDisplayStart + 1;
                 }
-                @endif
-            ]
+            },
+            {
+                data: 'name',
+                name: 'name'
+            },
+            {
+                data: 'phone_number',
+                name: 'phone_number',
+            },
+            {
+                data: 'address',
+                name: 'address',
+                render: function(data){
+                    if(data == null || data == ''){
+                        return "<span class='font-weight-bold text-muted'>-</span>";
+                    }
+                    return data;
+                }
+            }
+        ];
+
+        // Kolom action hanya untuk employee
+        if(userRole === 'employee'){
+            columns.push({
+                data: 'tindakan',
+                name: 'tindakan',
+                orderable: false,
+                searchable: false
+            });
+        }
+
+        $('#data-tabel').DataTable({
+            responsive: true,
+            lengthChange: true,
+            autoWidth: false,
+            processing: true,
+            serverSide: true,
+            ajax: `{{route('customer.list')}}`,
+            columns: columns
         }).buttons().container();
     }
 
-    function simpan(){
-            $.ajax({
-                url:`{{route('customer.save')}}`,
-                type:"post",
-                contenType:"json",
-                data:{
-                    name:$("#name").val(),
-                    phone_number:$("#phone_number").val(),
-                    address:$("#address").val(),
-                    "_token":"{{csrf_token()}}"
-                },
-                success:function(res){
-                    Swal.fire({
-                        position: "center",
-                        icon: "success",
-                        title: res.message,
-                        showConfirmButton: false,
-                        timer: 1500
-                    });
-                    $('#kembali').click();
-                    $("#name").val(null);
-                    $("#phone_number").val(null);
-                    $("#address").val(null);
-                    $('#data-tabel').DataTable().ajax.reload();
-                },
-                error:function(err){
-                    console.log(err);
-                },
+    // Form Validation
+    function validateForm(){
+        const name = $("#name").val().trim();
+        const phone_number = $("#phone_number").val().trim();
 
-            });
+        if(!name){
+            showAlert('warning', 'Nama customer tidak boleh kosong!');
+            return false;
+        }
+
+        if(!phone_number){
+            showAlert('warning', 'Nomor telepon tidak boleh kosong!');
+            return false;
+        }
+
+        return true;
     }
 
+    // Show Alert
+    function showAlert(type, message, timer = 1500){
+        Swal.fire({
+            position: "center",
+            icon: type,
+            title: message,
+            showConfirmButton: timer > 1500,
+            timer: timer
+        });
+    }
+
+    function simpan(){
+        if(!validateForm()) return;
+
+        $.ajax({
+            url: `{{route('customer.save')}}`,
+            type: "post",
+            data: {
+                name: $("#name").val().trim(),
+                phone_number: $("#phone_number").val().trim(),
+                address: $("#address").val().trim(),
+                "_token": "{{csrf_token()}}"
+            },
+            beforeSend: function() {
+                $('#simpan').prop('disabled', true).text('Saving...');
+            },
+            success: function(res){
+                showAlert('success', res.message);
+                closeModal();
+                $('#data-tabel').DataTable().ajax.reload();
+            },
+            error: function(err){
+                console.error(err);
+                let message = 'Terjadi kesalahan!';
+                if(err.responseJSON && err.responseJSON.message){
+                    message = err.responseJSON.message;
+                }
+                showAlert('error', message);
+            },
+            complete: function() {
+                $('#simpan').prop('disabled', false).text('{{__("save")}}');
+            }
+        });
+    }
 
     function ubah(){
-            $.ajax({
-                url:`{{route('customer.update')}}`,
-                type:"put",
-                data:{
-                    id:$("#id").val(),
-                    name:$("#name").val(),
-                    phone_number:$("#phone_number").val(),
-                    address:$("#address").val(),
-                    "_token":"{{csrf_token()}}"
-                },
-                success:function(res){
-                    Swal.fire({
-                        position: "center",
-                        icon: "success",
-                        title: res.message,
-                        showConfirmButton: false,
-                        timer: 1500
-                    });
-                    $('#kembali').click();
-                    $("#name").val(null);
-                    $("#phone_number").val(null);
-                    $("#address").val(null);
-                    $('#data-tabel').DataTable().ajax.reload();
-                    $('#simpan').text("{{__('save')}}");
-                },
-                error:function(err){
-                    console.log(err.responJson.text);
-                },
+        if(!validateForm()) return;
 
-            });
+        $.ajax({
+            url: `{{route('customer.update')}}`,
+            type: "put",
+            data: {
+                id: $("#id").val(),
+                name: $("#name").val().trim(),
+                phone_number: $("#phone_number").val().trim(),
+                address: $("#address").val().trim(),
+                "_token": "{{csrf_token()}}"
+            },
+            beforeSend: function() {
+                $('#simpan').prop('disabled', true).text('Updating...');
+            },
+            success: function(res){
+                showAlert('success', res.message);
+                closeModal();
+                $('#data-tabel').DataTable().ajax.reload();
+            },
+            error: function(err){
+                console.error(err);
+                let message = 'Terjadi kesalahan!';
+                if(err.responseJSON && err.responseJSON.message){
+                    message = err.responseJSON.message;
+                }
+                showAlert('error', message);
+            },
+            complete: function() {
+                $('#simpan').prop('disabled', false).text('{{__("update")}}');
+            }
+        });
+    }
+
+    // Clear Form Function
+    function clearForm(){
+        $("#id").val('');
+        $("#name").val('');
+        $("#phone_number").val('');
+        $("#address").val('');
+        $("#simpan").text("{{__('save')}}");
+        $("#TambahDataModalLabel").text("{{__('adding customer data')}}");
+    }
+
+    // Close Modal
+    function closeModal(){
+        $('#kembali').click();
+        clearForm();
     }
 
     $(document).ready(function(){
         isi();
 
-        $('#simpan').on('click',function(){
+        $('#simpan').on('click', function(){
             if($(this).text() === "{{__('update')}}"){
                 ubah();
-            }else{
+            } else {
                 simpan();
             }
         });
 
-        $("#modal-button").on("click",function(){
-            $("#TambahDataModalLabel").text("{{__('adding customer data')}}");
-            $("#name").val(null);
-            $("#phone_number").val(null);
-            $("#address").val(null);
-            $("#simpan").text("{{__('save')}}");
+        $("#modal-button").on("click", function(){
+            clearForm();
         });
 
-
+        // Reset modal when closed
+        $('#TambahData').on('hidden.bs.modal', function () {
+            clearForm();
+        });
     });
 
-
-
-    $(document).on("click",".ubah",function(){
+    $(document).on("click", ".ubah", function(){
         let id = $(this).attr('id');
         $("#modal-button").click();
         $("#TambahDataModalLabel").text("{{__('changing customer data')}}");
         $("#simpan").text("{{__('update')}}");
+        
         $.ajax({
-            url:"{{route('customer.detail')}}",
-            type:"post",
-            data:{
-                id:id,
-                "_token":"{{csrf_token()}}"
+            url: "{{route('customer.detail')}}",
+            type: "post",
+            data: {
+                id: id,
+                "_token": "{{csrf_token()}}"
             },
-            success:function({data}){
+            success: function(response){
+                const data = response.data;
                 $("#id").val(data.id);
                 $("#name").val(data.name);
                 $("#phone_number").val(data.phone_number);
-                $("#address").val(data.address);
+                $("#address").val(data.address || '');
+            },
+            error: function(err){
+                console.error(err);
+                showAlert('error', 'Gagal mengambil data customer!');
             }
         });
-
     });
 
-    $(document).on("click",".hapus",function(){
+    $(document).on("click", ".hapus", function(){
         let id = $(this).attr('id');
         const swalWithBootstrapButtons = Swal.mixin({
             customClass: {
@@ -227,6 +296,7 @@
             },
             buttonsStyling: false
         });
+        
         swalWithBootstrapButtons.fire({
             title: "{{__('you are sure')}} ?",
             text: "{{__('this data will be deleted')}}",
@@ -238,27 +308,27 @@
         }).then((result) => {
             if (result.isConfirmed) {
                 $.ajax({
-                    url:"{{route('customer.delete')}}",
-                    type:"delete",
-                    data:{
-                        id:id,
-                        "_token":"{{csrf_token()}}"
+                    url: "{{route('customer.delete')}}",
+                    type: "delete",
+                    data: {
+                        id: id,
+                        "_token": "{{csrf_token()}}"
                     },
-                    success:function(res){
-                        Swal.fire({
-                                position: "center",
-                                icon: "success",
-                                title: res.message,
-                                showConfirmButton: false,
-                                timer: 1500
-                        });
+                    success: function(res){
+                        showAlert('success', res.message);
                         $('#data-tabel').DataTable().ajax.reload();
+                    },
+                    error: function(err){
+                        console.error(err);
+                        let message = 'Gagal menghapus data!';
+                        if(err.responseJSON && err.responseJSON.message){
+                            message = err.responseJSON.message;
+                        }
+                        showAlert('error', message);
                     }
                 });
             }
         });
-
-
     });
 </script>
 @endsection

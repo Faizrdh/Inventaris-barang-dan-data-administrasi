@@ -8,6 +8,7 @@ use Yajra\DataTables\DataTables;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Item;
 use App\Models\Category;
 use App\Models\Unit;
@@ -56,6 +57,14 @@ class ItemController extends Controller
     public function save(Request $request): JsonResponse
     {
         try {
+            // Cek apakah user adalah employee
+            if(Auth::user()->role->name != 'employee') {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthorized. Only employees can add data.'
+                ], 403);
+            }
+
             $this->validateItemRequest($request);
 
             $data = [
@@ -91,6 +100,8 @@ class ItemController extends Controller
     public function detail(Request $request): JsonResponse
     {
         try {
+            $request->validate(['id' => 'required|integer|exists:items,id']);
+            
             $item = Item::with('category', 'unit', 'brand')->findOrFail($request->id);
             
             $responseData = [
@@ -118,8 +129,6 @@ class ItemController extends Controller
             return response()->json(['success' => false, 'message' => 'Error fetching data: ' . $e->getMessage()], 500);
         }
     }
-
-    
 
     public function detailByCode(Request $request): JsonResponse
     {
@@ -158,6 +167,14 @@ class ItemController extends Controller
     public function update(Request $request): JsonResponse
     {
         try {
+            // Cek apakah user adalah employee
+            if(Auth::user()->role->name != 'employee') {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthorized. Only employees can edit data.'
+                ], 403);
+            }
+
             $this->validateItemRequest($request, $request->id);
             
             $item = Item::findOrFail($request->id);
@@ -195,6 +212,16 @@ class ItemController extends Controller
     public function delete(Request $request): JsonResponse
     {
         try {
+            // Cek apakah user adalah employee
+            if(Auth::user()->role->name != 'employee') {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthorized. Only employees can delete data.'
+                ], 403);
+            }
+
+            $request->validate(['id' => 'required|integer|exists:items,id']);
+            
             $item = Item::findOrFail($request->id);
 
             // Check if item is used in transactions
@@ -217,6 +244,8 @@ class ItemController extends Controller
     public function getStockMovements(Request $request): JsonResponse
     {
         try {
+            $request->validate(['item_id' => 'required|integer|exists:items,id']);
+            
             $item = Item::with(['unit', 'category'])->findOrFail($request->item_id);
             $movements = $this->getItemStockMovements($item);
 
@@ -283,12 +312,18 @@ class ItemController extends Controller
                     </button>";
         }
         
-        return "<button class='ubah btn btn-success m-1' id='{$item->id}'>
-                    <i class='fas fa-pen m-1'></i>" . __("edit") . "
-                </button>
-                <button class='hapus btn btn-danger m-1' id='{$item->id}' data-name='{$item->name}'>
-                    <i class='fas fa-trash m-1'></i>" . __("delete") . "
-                </button>";
+        // Hanya tampilkan action buttons untuk employee
+        if(Auth::user()->role->name == 'employee') {
+            return "<button class='ubah btn btn-success m-1' id='{$item->id}'>
+                        <i class='fas fa-pen m-1'></i>" . __("edit") . "
+                    </button>
+                    <button class='hapus btn btn-danger m-1' id='{$item->id}' data-name='{$item->name}'>
+                        <i class='fas fa-trash m-1'></i>" . __("delete") . "
+                    </button>";
+        }
+        
+        // Jika bukan employee, return empty string
+        return '';
     }
 
     private function uploadImage($file): string
@@ -304,31 +339,31 @@ class ItemController extends Controller
         }
     }
 
-   private function calculateCurrentStock($itemId): int
-{
-    try {
-        $item = Item::find($itemId);
-        if (!$item) return 0;
-        
-        // Ambil stok awal dari field quantity
-        $initialStock = $item->quantity ?? 0;
-        
-        // Hitung total transaksi masuk dan keluar
-        $totalIn = GoodsIn::where('item_id', $itemId)->sum('quantity') ?? 0;
-        $totalOut = 0;
-        if (class_exists('App\Models\GoodsOut')) {
-            $totalOut = GoodsOut::where('item_id', $itemId)->sum('quantity') ?? 0;
+    private function calculateCurrentStock($itemId): int
+    {
+        try {
+            $item = Item::find($itemId);
+            if (!$item) return 0;
+            
+            // Ambil stok awal dari field quantity
+            $initialStock = $item->quantity ?? 0;
+            
+            // Hitung total transaksi masuk dan keluar
+            $totalIn = GoodsIn::where('item_id', $itemId)->sum('quantity') ?? 0;
+            $totalOut = 0;
+            if (class_exists('App\Models\GoodsOut')) {
+                $totalOut = GoodsOut::where('item_id', $itemId)->sum('quantity') ?? 0;
+            }
+            
+            // Stok = Stok Awal + Total Masuk - Total Keluar
+            return $initialStock + $totalIn - $totalOut;
+            
+        } catch (\Exception $e) {
+            Log::error('Error calculating stock for item ' . $itemId . ': ' . $e->getMessage());
+            $item = Item::find($itemId);
+            return $item ? $item->quantity : 0;
         }
-        
-        // Stok = Stok Awal + Total Masuk - Total Keluar
-        return $initialStock + $totalIn - $totalOut;
-        
-    } catch (\Exception $e) {
-        Log::error('Error calculating stock for item ' . $itemId . ': ' . $e->getMessage());
-        $item = Item::find($itemId);
-        return $item ? $item->quantity : 0;
     }
-}
 
     private function hasTransactions($itemId): bool
     {

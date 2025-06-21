@@ -8,12 +8,17 @@
             <div class="card w-100">
                 <div class="card-header row">
                     <div class="d-flex justify-content-end align-items-center w-100">
+                        {{-- Tombol tambah data hanya untuk employee --}}
+                        @if(Auth::user()->role->name == 'employee')
                         <button class="btn btn-success" type="button" data-toggle="modal" data-target="#TambahData" id="modal-button">
                             <i class="fas fa-plus m-1"></i> {{__('add data')}}
                         </button>
+                        @endif
                     </div>
                 </div>
 
+                {{-- Modal hanya ditampilkan untuk employee --}}
+                @if(Auth::user()->role->name == 'employee')
                 <!-- Modal Pilih Surat -->
                 <div class="modal fade" id="modal-letter" data-backdrop="static" data-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
                     <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -59,7 +64,7 @@
                     <div class="modal-dialog modal-xl modal-dialog-centered">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="TambahDataModalLabel">{{__('create incoming letter')}}</h5>
+                                <h5 class="modal-title" id="TambahDataModalLabel">{{__('tambah data surat masuk')}}</h5>
                                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                                     <span aria-hidden="true">&times;</span>
                                 </button>
@@ -76,6 +81,9 @@
                                             <input type="hidden" name="file_path"/>
                                             <input type="hidden" name="file_size"/>
                                             <input type="hidden" name="file_type"/>
+                                            {{-- TAMBAHAN: Hidden fields untuk sender info --}}
+                                            <input type="hidden" name="sender_name"/>
+                                            <input type="hidden" name="from_department"/>
                                         </div>
                                         
                                         <div class="form-group">
@@ -94,7 +102,7 @@
                                         </div>
                                         
                                         <div class="form-group">
-                                            <label for="letter_name" class="form-label">{{__("Nama surat")}}</label>
+                                            <label for="letter_name" class="form-label">{{__("Perihal")}}</label>
                                             <input type="text" name="letter_name" readonly class="form-control">
                                         </div>
                                         
@@ -136,32 +144,39 @@
                                     </div>
                                     
                                     <div class="col-md-6">
+                                        {{-- HAPUS field sender_name dan from_department, HANYA SISAKAN dropdown pengirim --}}
                                         <div class="form-group">
-                                            <label for="sender_name" class="form-label">{{__('nama pengirim')}} <span class="text-danger">*</span></label>
-                                            <input type="text" name="sender_name" class="form-control" placeholder="Nama pengirim">
-                                        </div>
-                                        
-                                        <div class="form-group">
-                                            <label for="from_department" class="form-label">{{__('dari')}} <span class="text-danger">*</span></label>
-                                            <input type="text" name="from_department" class="form-control" placeholder="Pengirim berasal dari">
-                                        </div>
-                                        
-                                        <div class="form-group">
-                                            <label for="sender_letter" class="form-label">{{__('Pilih pengirim')}} <span class="text-muted">(opsional)</span></label>
+                                            <label for="sender_letter" class="form-label">{{__('Pilih pengirim')}} <span class="text-danger">*</span></label>
                                             <select name="sender_letter" class="form-control">
                                                 <option selected value="">-- {{__('Pilih pengirim')}} --</option>
                                                 @foreach($senderLetters as $sender)
-                                                <option value="{{$sender->id}}" data-name="{{$sender->name}}" data-department="{{$sender->from_department}}">
-                                                    {{$sender->name}}@if($sender->from_department) - {{$sender->from_department}}@endif
+                                                <option value="{{$sender->id}}" data-name="{{$sender->from_department}}" data-department="{{$sender->from_department}}">
+                                                    {{$sender->from_department}}
                                                 </option>
                                                 @endforeach
                                             </select>
-                                            <small class="text-muted">Pilih dari daftar pengirim yang sudah ada untuk mengisi otomatis</small>
+                                            <small class="text-muted">Wajib pilih pengirim dari daftar yang tersedia</small>
+                                        </div>
+
+                                        {{-- INFO DISPLAY: Tampilkan info pengirim yang dipilih --}}
+                                        <div class="form-group">
+                                            <label class="form-label">{{__('Info Pengirim')}}</label>
+                                            <div id="sender-info-display" class="border rounded p-3 bg-light" style="display: none;">
+                                                <div class="mb-2">
+                                                    <strong>Asal Surat:</strong> <span id="display-sender-name">-</span>
+                                                </div>
+                                                <div>
+                                                    <strong>Dari:</strong> <span id="display-from-department">-</span>
+                                                </div>
+                                            </div>
+                                            <div id="no-sender-display" class="text-muted text-center py-3">
+                                                <i class="fas fa-user-slash"></i> Belum ada pengirim dipilih
+                                            </div>
                                         </div>
                                         
                                         <div class="form-group">
                                             <label for="notes" class="form-label">{{__("notes")}}</label>
-                                            <textarea name="notes" class="form-control" rows="6" placeholder="Catatan tambahan"></textarea>
+                                            <textarea name="notes" class="form-control" rows="8" placeholder="Catatan tambahan"></textarea>
                                         </div>
                                     </div>
                                 </div>
@@ -173,6 +188,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
 
                 <div class="card-body">
                     <div class="table-responsive">
@@ -182,11 +198,13 @@
                                     <th class="border-bottom-0" width="5%">{{__("no")}}</th>
                                     <th class="border-bottom-0">{{__("Tanggal masuk")}}</th>
                                     <th class="border-bottom-0">{{__("Nomor surat")}}</th>
-                                    <th class="border-bottom-0">{{__("Nama surat")}}</th>
-                                    <th class="border-bottom-0">{{__("Nama pengirim")}}</th>
-                                    <th class="border-bottom-0">{{__("dari")}}</th>
+                                    <th class="border-bottom-0">{{__("Perihal")}}</th>
+                                    <th class="border-bottom-0">{{__("Pengirim")}}</th>
                                     <th class="border-bottom-0">{{__("Jenis")}}</th>
+                                    {{-- Kolom action hanya untuk employee --}}
+                                    @if(Auth::user()->role->name == 'employee')
                                     <th class="border-bottom-0" width="25%">{{__("detail surat")}}</th>
+                                    @endif
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -210,6 +228,9 @@
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         }
     });
+
+    // Kirim role user ke JS
+    const userRole = "{{ Auth::user()->role->name }}";
 
     function formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
@@ -259,6 +280,20 @@
         }
     }
 
+    // FUNGSI BARU: Update tampilan info pengirim
+    function updateSenderDisplay(senderName, fromDepartment) {
+        if (senderName && fromDepartment) {
+            $('#sender-info-display').show();
+            $('#no-sender-display').hide();
+            $('#display-sender-name').text(senderName);
+            $('#display-from-department').text(fromDepartment);
+        } else {
+            $('#sender-info-display').hide();
+            $('#no-sender-display').show();
+        }
+    }
+
+    @if(Auth::user()->role->name == 'employee')
     function initializeLetterTable() {
         if (letterTable) {
             letterTable.destroy();
@@ -344,6 +379,64 @@
             letterTable.search(this.value).draw();
         });
     }
+    @endif
+
+    function isi(){
+        let columns = [
+            {
+                "data": null, 
+                "sortable": false,
+                render: function(data, type, row, meta) {
+                    return meta.row + meta.settings._iDisplayStart + 1;
+                }
+            },
+            { data: "received_date_formatted", name: "received_date_formatted", defaultContent: '-' },
+            { data: "letter_code", name: "letter_code", defaultContent: '-' },
+            { data: "letter_name", name: "letter_name", defaultContent: '-' },
+            { data: "sender_name_display", name: "sender_name_display", defaultContent: '-' },
+            { data: "category_name", name: "category_name", defaultContent: '-' }
+        ];
+
+        // Kolom action hanya untuk employee
+        if(userRole === 'employee'){
+            columns.push({ 
+                data: "detail_surat", 
+                name: "detail_surat", 
+                orderable: false, 
+                searchable: false,
+                render: function(data, type, row) {
+                    return '<div class="detail-surat-wrapper">' + data + '</div>';
+                }
+            });
+        }
+
+        // Initialize main DataTable
+        mainTable = $('#data-tabel').DataTable({
+            lengthChange: true,
+            processing: true,
+            serverSide: true,
+            destroy: true,
+            responsive: true,
+            ajax: {
+                url: "{{route('surat.masuk.list')}}",
+                type: 'POST',
+                error: function(xhr, error, code) {
+                    console.log('Ajax error:', xhr.responseText);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Error loading data'
+                    });
+                }
+            },
+            columns: columns,
+            language: {
+                processing: "Loading...",
+                emptyTable: "No data available",
+                zeroRecords: "No matching records found"
+            }
+        });
+    }
 
     function detail() {
         const letter_code = $("input[name='letter_code']").val().trim();
@@ -371,6 +464,8 @@
                     const data = response.data;
                     $("input[name='letter_id']").val(data.id);
                     $("input[name='letter_name']").val(data.name);
+                    
+                    // Set hidden fields untuk sender info
                     $("input[name='sender_name']").val(data.sender_name || '');
                     $("input[name='from_department']").val(data.from_department || '');
                     $("select[name='sender_letter']").val(data.sender_id || '');
@@ -382,6 +477,7 @@
                     $("input[name='file_type']").val(data.file_type || '');
                     
                     updateFileDisplay(data);
+                    updateSenderDisplay(data.sender_name, data.from_department);
                     
                     Swal.fire({
                         icon: 'success',
@@ -393,6 +489,7 @@
                 } else {
                     resetLetterFields();
                     updateFileDisplay(null);
+                    updateSenderDisplay('', '');
                     Swal.fire({
                         icon: 'error',
                         title: 'Tidak Ditemukan',
@@ -438,15 +535,20 @@
             _token: '{{csrf_token()}}'
         };
 
-        // Validasi
-        const requiredFields = ['letter_id', 'category_letter_id', 'received_date', 'sender_name', 'from_department'];
-        const missingFields = requiredFields.filter(field => !formData[field]);
+        // VALIDASI UPDATE: sender_letter sekarang wajib
+        const requiredFields = ['letter_id', 'category_letter_id', 'received_date', 'sender_letter_id'];
+        const missingFields = requiredFields.filter(field => {
+            if (field === 'sender_letter_id') {
+                return !formData[field];
+            }
+            return !formData[field];
+        });
         
         if (missingFields.length > 0) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Field Kosong',
-                text: 'Mohon lengkapi semua field yang required!'
+                text: 'Mohon lengkapi semua field yang required, termasuk memilih pengirim!'
             });
             return;
         }
@@ -504,15 +606,20 @@
             "_token": "{{csrf_token()}}"
         };
 
-        // Validasi
-        const requiredFields = ['id', 'letter_id', 'category_letter_id', 'received_date', 'sender_name', 'from_department'];
-        const missingFields = requiredFields.filter(field => !formData[field]);
+        // VALIDASI UPDATE: sender_letter sekarang wajib
+        const requiredFields = ['id', 'letter_id', 'category_letter_id', 'received_date', 'sender_letter_id'];
+        const missingFields = requiredFields.filter(field => {
+            if (field === 'sender_letter_id') {
+                return !formData[field];
+            }
+            return !formData[field];
+        });
         
         if (missingFields.length > 0) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Field Kosong',
-                text: 'Mohon lengkapi semua field yang required!'
+                text: 'Mohon lengkapi semua field yang required, termasuk memilih pengirim!'
             });
             return;
         }
@@ -559,60 +666,15 @@
             $(`[name='${field}']`).val('');
         });
         updateFileDisplay(null);
+        updateSenderDisplay('', '');
     }
 
     $(document).ready(function() {
         // Initialize main DataTable
-        mainTable = $('#data-tabel').DataTable({
-            lengthChange: true,
-            processing: true,
-            serverSide: true,
-            destroy: true,
-            responsive: true,
-            ajax: {
-                url: "{{route('surat.masuk.list')}}",
-                type: 'POST',
-                error: function(xhr, error, code) {
-                    console.log('Ajax error:', xhr.responseText);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Error loading data'
-                    });
-                }
-            },
-            columns: [
-                {
-                    "data": null, 
-                    "sortable": false,
-                    render: function(data, type, row, meta) {
-                        return meta.row + meta.settings._iDisplayStart + 1;
-                    }
-                },
-                { data: "received_date_formatted", name: "received_date_formatted", defaultContent: '-' },
-                { data: "letter_code", name: "letter_code", defaultContent: '-' },
-                { data: "letter_name", name: "letter_name", defaultContent: '-' },
-                { data: "sender_name_display", name: "sender_name_display", defaultContent: '-' },
-                { data: "department_name_display", name: "department_name_display", defaultContent: '-' },
-                { data: "category_name", name: "category_name", defaultContent: '-' },
-                { 
-                    data: "detail_surat", 
-                    name: "detail_surat", 
-                    orderable: false, 
-                    searchable: false,
-                    render: function(data, type, row) {
-                        return '<div class="detail-surat-wrapper">' + data + '</div>';
-                    }
-                }
-            ],
-            language: {
-                processing: "Loading...",
-                emptyTable: "No data available",
-                zeroRecords: "No matching records found"
-            }
-        });
+        isi();
 
-        // Event handlers
+        // Event handlers hanya untuk employee
+        @if(Auth::user()->role->name == 'employee')
         $("#pilih-letter").on("click", function() {
             initializeLetterTable();
             $('#modal-letter').modal('show');
@@ -637,21 +699,21 @@
         $("#modal-button").on("click", function() {
             resetForm();
             $('#simpan').text("{{__('save')}}");
-            $('.modal-title').text("{{__('create incoming letter')}}");
+            $('.modal-title').text("{{__('tambah data surat masuk')}}");
         });
 
-        // Auto fill saat memilih sender dari dropdown
+        // UPDATE: Auto fill saat memilih sender dari dropdown
         $("select[name='sender_letter']").on("change", function() {
             const selectedOption = $(this).find('option:selected');
             const senderName = selectedOption.data('name');
             const department = selectedOption.data('department');
             
-            if (senderName) {
-                $("input[name='sender_name']").val(senderName);
-            }
-            if (department) {
-                $("input[name='from_department']").val(department);
-            }
+            // Set hidden fields
+            $("input[name='sender_name']").val(senderName || '');
+            $("input[name='from_department']").val(department || '');
+            
+            // Update display
+            updateSenderDisplay(senderName, department);
         });
 
         // Pilih surat dari modal - optimized
@@ -684,6 +746,7 @@
             $("input[name='file_type']").val(data.file_type || '');
             
             updateFileDisplay(data);
+            updateSenderDisplay(data.sender_name, data.department);
             
             $('#modal-letter').modal('hide');
             $('#TambahData').modal('show');
@@ -716,6 +779,7 @@
                             }
                         });
                         updateFileDisplay(data);
+                        updateSenderDisplay(data.sender_name, data.from_department);
                     }
                 },
                 error: function(xhr) {
@@ -784,6 +848,7 @@
                 }
             });
         });
+        @endif
     });
 </script>
 
@@ -843,6 +908,12 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* TAMBAHAN: Styling untuk info pengirim */
+#sender-info-display {
+    background-color: #f8f9fa;
+    border-left: 3px solid #28a745;
 }
 
 /* Responsive untuk mobile */

@@ -22,15 +22,15 @@ class Letter extends Model
         'file_type',
         'category_letter_id',
         'sender_letter_id',
-        'from_department',
-        'user_id'
+        'from_department'
     ];
 
     protected $casts = [
         'date_received' => 'datetime',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
+        'file_size' => 'integer',
+        'category_letter_id' => 'integer',
+        'sender_letter_id' => 'integer',
+        'user_id' => 'integer',
     ];
 
     protected $dates = ['deleted_at'];
@@ -75,11 +75,14 @@ class Letter extends Model
         if (!$this->file_size) {
             return 'Unknown size';
         }
-        $bytes = $this->file_size;
+        
+        $bytes = (int) $this->file_size;
         if ($bytes === 0) return '0 Bytes';
+        
         $k = 1024;
         $sizes = ['Bytes', 'KB', 'MB', 'GB'];
         $i = floor(log($bytes) / log($k));
+        
         return round($bytes / pow($k, $i), 2) . ' ' . $sizes[$i];
     }
 
@@ -102,6 +105,7 @@ class Letter extends Model
         if (!$this->file_type) {
             return 'fas fa-file text-secondary';
         }
+        
         $icons = [
             'application/pdf' => 'fas fa-file-pdf text-danger',
             'application/msword' => 'fas fa-file-word text-primary',
@@ -110,6 +114,7 @@ class Letter extends Model
             'image/jpg' => 'fas fa-file-image text-success',
             'image/png' => 'fas fa-file-image text-success',
         ];
+        
         return $icons[$this->file_type] ?? 'fas fa-file text-secondary';
     }
 
@@ -124,22 +129,40 @@ class Letter extends Model
     /**
      * Get sender name (from relationship or direct field)
      */
-    public function getSenderNameAttribute(): string
+    public function getSenderNameAttribute(): ?string
     {
-        return $this->senderLetter ? $this->senderLetter->name : '-';
+        if ($this->relationLoaded('senderLetter') && $this->senderLetter) {
+            return $this->senderLetter->destination;
+        }
+        
+        // Load relation jika belum di-load
+        if ($this->sender_letter_id && !$this->relationLoaded('senderLetter')) {
+            $this->load('senderLetter');
+            return $this->senderLetter?->destination;
+        }
+        
+        return null;
     }
 
     /**
      * Get department name (prioritas dari relasi, fallback ke field langsung)
      */
-    public function getDepartmentNameAttribute(): string
+    public function getDepartmentNameAttribute(): ?string
     {
         // Prioritas dari relasi sender_letter
-        if ($this->senderLetter && $this->senderLetter->from_department) {
+        if ($this->relationLoaded('senderLetter') && $this->senderLetter?->from_department) {
             return $this->senderLetter->from_department;
         }
         
+        // Load relation jika belum di-load dan ada sender_letter_id
+        if ($this->sender_letter_id && !$this->relationLoaded('senderLetter')) {
+            $this->load('senderLetter');
+            if ($this->senderLetter?->from_department) {
+                return $this->senderLetter->from_department;
+            }
+        }
+        
         // Fallback ke field langsung
-        return $this->from_department ?? '-';
+        return $this->from_department;
     }
 }

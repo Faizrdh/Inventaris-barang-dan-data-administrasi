@@ -86,12 +86,19 @@ class TransactionOutController extends Controller
                         return '<small class="text-muted">' . number_format($stockBefore) . ' → ' . number_format($currentStock) . '</small>';
                     })
                     ->addColumn('tindakan', function ($data) {
-                        $button = "<button class='ubah btn btn-success btn-sm m-1' id='" . $data->id . "' title='Edit'>";
-                        $button .= "<i class='fas fa-edit'></i> " . __("edit") . "</button>";
-                        $button .= "<button class='hapus btn btn-danger btn-sm m-1' id='" . $data->id . "' title='Delete'>";
-                        $button .= "<i class='fas fa-trash'></i> " . __("delete") . "</button>";
-                        $button .= "<button class='detail btn btn-info btn-sm m-1' id='" . $data->id . "' title='Detail'>";
-                        $button .= "<i class='fas fa-eye'></i> " . __("detail") . "</button>";
+                        $button = '';
+                        
+                        // Hanya employee yang bisa edit dan hapus
+                        if (Auth::user()->role->name === 'employee') {
+                            // Button Edit dengan warna hijau
+                            $button .= "<button class='ubah btn btn-success btn-sm m-1' id='" . $data->id . "' title='Edit'>";
+                            $button .= "<i class='fas fa-edit'></i> " . __("edit") . "</button>";
+                            
+                            // Button Delete dengan warna merah
+                            $button .= "<button class='hapus btn btn-danger btn-sm m-1' id='" . $data->id . "' title='Delete'>";
+                            $button .= "<i class='fas fa-trash'></i> " . __("delete") . "</button>";
+                        }
+                        
                         return $button;
                     })
                     ->rawColumns(['quantity_formatted', 'current_stock', 'stock_impact', 'tindakan'])
@@ -110,84 +117,93 @@ class TransactionOutController extends Controller
     }
 
     public function save(Request $request): JsonResponse
-{
-    DB::beginTransaction();
-
-    try {
-        $validated = $request->validate([
-            'item_id' => 'required|exists:items,id',
-            'user_id' => 'required|exists:users,id',
-            'quantity' => 'required|numeric|min:1|max:999999',
-            'date_out' => 'required|date|before_or_equal:' . now()->format('Y-m-d'),
-            'customer_id' => 'required|exists:customers,id',
-            'invoice_number' => 'required|string|max:255'
-        ]);
-
-        Log::info('Validation passed', $validated); // Tambahkan log untuk debugging
-
-        $item = Item::find($validated['item_id']);
-        if (!$item) {
-            return response()->json(['success' => false, 'message' => 'Item not found'], 404);
+    {
+        // HANYA EMPLOYEE YANG BISA MENAMBAH DATA
+        if (Auth::user()->role->name !== 'employee') {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Access denied. Only employees can create outbound transactions.'
+            ], 403);
         }
 
-        // Jika invoice_number tidak disediakan, buat secara otomatis
-        if (empty($validated['invoice_number'])) {
-            $validated['invoice_number'] = 'BRGKLR-' . time();
-        }
+        DB::beginTransaction();
 
-        $stockCheck = GoodsOut::validateStockAvailability($validated['item_id'], $validated['quantity']);
-        if (!$stockCheck['is_available']) {
-            return response()->json(['success' => false, 'message' => $stockCheck['message'], 'stock_info' => $stockCheck], 400);
-        }
+        try {
+            $validated = $request->validate([
+                'item_id' => 'required|exists:items,id',
+                'user_id' => 'required|exists:users,id',
+                'quantity' => 'required|numeric|min:1|max:999999',
+                'date_out' => 'required|date|before_or_equal:' . now()->format('Y-m-d'),
+                'customer_id' => 'required|exists:customers,id',
+                'invoice_number' => 'required|string|max:255'
+            ]);
 
-        $goodsOut = GoodsOut::create([
-            'item_id' => $validated['item_id'],
-            'user_id' => $validated['user_id'],
-            'quantity' => $validated['quantity'],
-            'invoice_number' => $validated['invoice_number'],
-            'date_out' => $validated['date_out'],
-            'customer_id' => $validated['customer_id']
-        ]);
+            Log::info('Validation passed', $validated);
 
-        $newStock = GoodsOut::calculateCurrentStock($item->id);
+            $item = Item::find($validated['item_id']);
+            if (!$item) {
+                return response()->json(['success' => false, 'message' => 'Item not found'], 404);
+            }
 
-        Log::info('Goods out transaction created', [
-            'goods_out_id' => $goodsOut->id,
-            'item_id' => $item->id,
-            'item_name' => $item->name,
-            'item_code' => $item->code,
-            'quantity_removed' => $validated['quantity'],
-            'new_stock' => $newStock,
-            'customer' => Customer::find($validated['customer_id'])->name ?? 'Unknown',
-            'user_id' => Auth::id()
-        ]);
+            // Jika invoice_number tidak disediakan, buat secara otomatis
+            if (empty($validated['invoice_number'])) {
+                $validated['invoice_number'] = 'BRGKLR-' . time();
+            }
 
-        DB::commit();
+            $stockCheck = GoodsOut::validateStockAvailability($validated['item_id'], $validated['quantity']);
+            if (!$stockCheck['is_available']) {
+                return response()->json(['success' => false, 'message' => $stockCheck['message'], 'stock_info' => $stockCheck], 400);
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => __("saved successfully"),
-            'data' => [
+            $goodsOut = GoodsOut::create([
+                'item_id' => $validated['item_id'],
+                'user_id' => $validated['user_id'],
+                'quantity' => $validated['quantity'],
+                'invoice_number' => $validated['invoice_number'],
+                'date_out' => $validated['date_out'],
+                'customer_id' => $validated['customer_id']
+            ]);
+
+            $newStock = GoodsOut::calculateCurrentStock($item->id);
+
+            Log::info('Goods out transaction created by employee', [
                 'goods_out_id' => $goodsOut->id,
+                'item_id' => $item->id,
                 'item_name' => $item->name,
                 'item_code' => $item->code,
-                'invoice_number' => $goodsOut->invoice_number,
                 'quantity_removed' => $validated['quantity'],
                 'new_stock' => $newStock,
-                'unit' => $item->unit->name ?? 'Unit'
-            ]
-        ], 200);
+                'customer' => Customer::find($validated['customer_id'])->name ?? 'Unknown',
+                'user_id' => Auth::id(),
+                'user_role' => Auth::user()->role->name
+            ]);
 
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        DB::rollBack();
-        Log::error('Validation failed', ['errors' => $e->errors()]);
-        return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
-    } catch (\Exception $e) {
-        DB::rollBack();
-        Log::error('Error saving goods out: ' . $e->getMessage());
-        return response()->json(['success' => false, 'message' => 'Error saving data: ' . $e->getMessage()], 500);
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => __("saved successfully"),
+                'data' => [
+                    'goods_out_id' => $goodsOut->id,
+                    'item_name' => $item->name,
+                    'item_code' => $item->code,
+                    'invoice_number' => $goodsOut->invoice_number,
+                    'quantity_removed' => $validated['quantity'],
+                    'new_stock' => $newStock,
+                    'unit' => $item->unit->name ?? 'Unit'
+                ]
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            Log::error('Validation failed', ['errors' => $e->errors()]);
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error saving goods out: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error saving data: ' . $e->getMessage()], 500);
+        }
     }
-}
 
     public function detail(Request $request): JsonResponse
     {
@@ -212,7 +228,7 @@ class TransactionOutController extends Controller
                 'customer_id' => $data->customer_id,
                 'date_out' => $data->date_out,
                 'quantity' => $data->quantity,
-                'invoice_number' => $data->invoice_number, // Pastikan invoice_number dikembalikan
+                'invoice_number' => $data->invoice_number,
                 'item_id' => $data->item_id,
                 'kode_barang' => $item->code,
                 'nama_barang' => $item->name,
@@ -235,6 +251,14 @@ class TransactionOutController extends Controller
 
     public function update(Request $request): JsonResponse
     {
+        // HANYA EMPLOYEE YANG BISA UPDATE DATA
+        if (Auth::user()->role->name !== 'employee') {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Access denied. Only employees can update outbound transactions.'
+            ], 403);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -287,7 +311,7 @@ class TransactionOutController extends Controller
             $newStock = GoodsOut::calculateCurrentStock($goodsOut->item_id);
             $item = Item::find($goodsOut->item_id);
 
-            Log::info('Goods out transaction updated', [
+            Log::info('Goods out transaction updated by employee', [
                 'goods_out_id' => $goodsOut->id,
                 'old_item_id' => $oldItemId,
                 'new_item_id' => $goodsOut->item_id,
@@ -295,7 +319,8 @@ class TransactionOutController extends Controller
                 'new_quantity' => $goodsOut->quantity,
                 'item_code' => $item->code,
                 'new_stock' => $newStock,
-                'user_id' => Auth::id()
+                'user_id' => Auth::id(),
+                'user_role' => Auth::user()->role->name
             ]);
 
             DB::commit();
@@ -307,7 +332,7 @@ class TransactionOutController extends Controller
                     'goods_out_id' => $goodsOut->id,
                     'item_name' => $item->name,
                     'item_code' => $item->code,
-                    'invoice_number' => $goodsOut->invoice_number, // Pastikan invoice_number dikembalikan
+                    'invoice_number' => $goodsOut->invoice_number,
                     'new_quantity' => $goodsOut->quantity,
                     'new_stock' => $newStock,
                     'unit' => $item->unit->name ?? 'Unit'
@@ -356,7 +381,8 @@ class TransactionOutController extends Controller
                 'item_code' => $itemCode,
                 'quantity_restored' => $quantity,
                 'new_stock' => $newStock,
-                'user_id' => Auth::id()
+                'user_id' => Auth::id(),
+                'user_role' => Auth::user()->role->name
             ]);
 
             DB::commit();

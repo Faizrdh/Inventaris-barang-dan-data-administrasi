@@ -8,12 +8,17 @@
             <div class="card w-100">
                 <div class="card-header row">
                     <div class="d-flex justify-content-end align-items-center w-100">
+                        {{-- Tombol tambah data hanya untuk employee --}}
+                        @if(Auth::user()->role->name == 'employee')
                         <button class="btn btn-success" type="button" data-toggle="modal" data-target="#TambahData" id="modal-button">
                             <i class="fas fa-plus m-1"></i> {{__('add data')}}
                         </button>
+                        @endif
                     </div>
                 </div>
 
+                {{-- Modal hanya ditampilkan untuk employee --}}
+                @if(Auth::user()->role->name == 'employee')
                 <!-- Modal Pilih Surat -->
                 <div class="modal fade" id="modal-letter" data-backdrop="static" data-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
                     <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -56,143 +61,107 @@
 
                 <!-- Modal Input/Edit -->
                 <div class="modal fade" id="TambahData" tabindex="-1" aria-labelledby="TambahDataModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="TambahDataModalLabel">{{__('Membuat data surat keluar')}}</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="sent_date" class="form-label">{{__('tanggal keluar')}} <span class="text-danger">*</span></label>
-                            <input type="date" name="sent_date" class="form-control">
-                            <input type="hidden" name="id"/>
-                            <input type="hidden" name="letter_id"/>
-                            <input type="hidden" name="file_name"/>
-                            <input type="hidden" name="file_path"/>
-                            <input type="hidden" name="file_size"/>
-                            <input type="hidden" name="file_type"/>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="letter_code" class="form-label">{{__('Nomor surat')}} <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <input type="text" name="letter_code" class="form-control" placeholder="Nomor surat">
-                                <div class="input-group-append">
-                                    <button class="btn btn-outline-primary" type="button" id="cari-letter" title="Cari berdasarkan kode">
-                                        <i class="fas fa-search"></i>
-                                    </button>
-                                    <button class="btn btn-success" type="button" id="pilih-letter" title="Pilih dari daftar">
-                                        <i class="fas fa-list"></i>
-                                    </button>
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="TambahDataModalLabel">{{__('Membuat data surat keluar')}}</h5>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="sent_date" class="form-label">{{__('tanggal keluar')}} <span class="text-danger">*</span></label>
+                                            <input type="date" name="sent_date" class="form-control">
+                                            <input type="hidden" name="id"/>
+                                            <input type="hidden" name="letter_id"/>
+                                            <input type="hidden" name="file_name"/>
+                                            <input type="hidden" name="file_path"/>
+                                            <input type="hidden" name="file_size"/>
+                                            <input type="hidden" name="file_type"/>
+                                        </div>
+                                        
+                                        <div class="form-group">
+                                            <label for="letter_code" class="form-label">{{__('Nomor surat')}} <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <input type="text" name="letter_code" class="form-control" placeholder="Nomor surat">
+                                                <div class="input-group-append">
+                                                    <button class="btn btn-outline-primary" type="button" id="cari-letter" title="Cari berdasarkan kode">
+                                                        <i class="fas fa-search"></i>
+                                                    </button>
+                                                    <button class="btn btn-success" type="button" id="pilih-letter" title="Pilih dari daftar">
+                                                        <i class="fas fa-list"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="form-group">
+                                            <label for="letter_name" class="form-label">{{__("Nama surat")}}</label>
+                                            <input type="text" name="letter_name" readonly class="form-control">
+                                        </div>
+                                        
+                                        <div class="form-group">
+                                            <label for="perihal" class="form-label">{{__('Perihal')}} <span class="text-danger">*</span></label>
+                                            <input type="text" name="perihal" class="form-control" placeholder="Perihal surat">
+                                        </div>
+
+                                        <!-- FIELD BARU: TUJUAN -->
+                                        <div class="form-group">
+                                            <label for="tujuan" class="form-label">{{__('Tujuan')}} <span class="text-danger">*</span></label>
+                                            <input type="text" name="tujuan" class="form-control" placeholder="Tujuan surat (Institusi/Departemen/Person)">
+                                        </div>
+
+                                        <!-- File Information Display - DIKECILKAN -->
+                                        <div class="form-group">
+                                            <label class="form-label">{{__('File Information')}}</label>
+                                            <div id="file-info-display" class="border rounded p-2 bg-light" style="display: none;">
+                                                <div class="d-flex align-items-center mb-1">
+                                                    <i id="file-icon" class="fas fa-file text-secondary me-2"></i>
+                                                    <div class="flex-grow-1">
+                                                        <div id="file-name-display" class="font-weight-bold small">-</div>
+                                                        <small id="file-size-display" class="text-muted">-</small>
+                                                    </div>
+                                                    <div class="btn-group" role="group">
+                                                        <a id="file-view-btn" href="#" target="_blank" class="btn btn-sm btn-outline-primary" style="display: none;">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                        <a id="file-download-btn" href="#" download class="btn btn-sm btn-outline-success" style="display: none;">
+                                                            <i class="fas fa-download"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div id="file-type-display" class="text-muted small">-</div>
+                                            </div>
+                                            <div id="no-file-display" class="text-muted text-center py-2">
+                                                <i class="fas fa-file-slash"></i> Tidak ada file
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="keterangan" class="form-label">{{__('Keterangan')}}</label>
+                                            <textarea name="keterangan" class="form-control" rows="3" placeholder="Keterangan surat"></textarea>
+                                        </div>
+                                        
+                                        <div class="form-group">
+                                            <label for="notes" class="form-label">{{__("notes")}}</label>
+                                            <textarea name="notes" class="form-control" rows="4" placeholder="Catatan tambahan"></textarea>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="letter_name" class="form-label">{{__("Nama surat")}}</label>
-                            <input type="text" name="letter_name" readonly class="form-control">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="perihal" class="form-label">{{__('Perihal')}} <span class="text-danger">*</span></label>
-                            <input type="text" name="perihal" class="form-control" placeholder="Perihal surat">
-                        </div>
-
-                        <!-- FIELD BARU: TUJUAN -->
-                        <div class="form-group">
-                            <label for="tujuan" class="form-label">{{__('Tujuan')}} <span class="text-danger">*</span></label>
-                            <input type="text" name="tujuan" class="form-control" placeholder="Tujuan surat (Institusi/Departemen/Person)">
-                        </div>
-
-                        <!-- File Information Display - DIKECILKAN -->
-                        <div class="form-group">
-                            <label class="form-label">{{__('File Information')}}</label>
-                            <div id="file-info-display" class="border rounded p-2 bg-light" style="display: none;">
-                                <div class="d-flex align-items-center mb-1">
-                                    <i id="file-icon" class="fas fa-file text-secondary me-2"></i>
-                                    <div class="flex-grow-1">
-                                        <div id="file-name-display" class="font-weight-bold small">-</div>
-                                        <small id="file-size-display" class="text-muted">-</small>
-                                    </div>
-                                    <div class="btn-group" role="group">
-                                        <a id="file-view-btn" href="#" target="_blank" class="btn btn-sm btn-outline-primary" style="display: none;">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a id="file-download-btn" href="#" download class="btn btn-sm btn-outline-success" style="display: none;">
-                                            <i class="fas fa-download"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div id="file-type-display" class="text-muted small">-</div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal" id="kembali">{{__("cancel")}}</button>
+                                <button type="button" class="btn btn-success" id="simpan">{{__("save")}}</button>
                             </div>
-                            <div id="no-file-display" class="text-muted text-center py-2">
-                                <i class="fas fa-file-slash"></i> Tidak ada file
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="keterangan" class="form-label">{{__('Keterangan')}}</label>
-                            <textarea name="keterangan" class="form-control" rows="3" placeholder="Keterangan surat"></textarea>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="notes" class="form-label">{{__("notes")}}</label>
-                            <textarea name="notes" class="form-control" rows="4" placeholder="Catatan tambahan"></textarea>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal" id="kembali">{{__("cancel")}}</button>
-                <button type="button" class="btn btn-success" id="simpan">{{__("save")}}</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<style>
-/* Pastikan modal tidak terlalu tinggi */
-.modal-dialog-centered {
-    max-height: 90vh;
-}
-
-.modal-content {
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-}
-
-.modal-body {
-    flex: 1;
-    overflow-y: auto;
-    max-height: 70vh;
-}
-
-/* Kompak file info display */
-#file-info-display .small {
-    font-size: 0.85em;
-}
-
-/* Responsive untuk layar kecil */
-@media (max-height: 768px) {
-    .modal-body {
-        max-height: 60vh;
-    }
-}
-
-@media (max-height: 600px) {
-    .modal-body {
-        max-height: 50vh;
-    }
-}
-</style>
+                @endif
 
                 <div class="card-body">
                     <div class="table-responsive">
@@ -205,7 +174,10 @@
                                     <th class="border-bottom-0">{{__("Perihal")}}</th>
                                     <th class="border-bottom-0">{{__("Tujuan")}}</th> <!-- KOLOM BARU -->
                                     <th class="border-bottom-0">{{__("Keterangan")}}</th>
+                                    {{-- Kolom action hanya untuk employee --}}
+                                    @if(Auth::user()->role->name == 'employee')
                                     <th class="border-bottom-0" width="20%">{{__("Detail File Surat")}}</th>
+                                    @endif
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -229,6 +201,9 @@
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         }
     });
+
+    // Kirim role user ke JS
+    const userRole = "{{ Auth::user()->role->name }}";
 
     function formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
@@ -278,6 +253,7 @@
         }
     }
 
+    @if(Auth::user()->role->name == 'employee')
     function initializeLetterTable() {
         if (letterTable) {
             letterTable.destroy();
@@ -361,6 +337,64 @@
         // Custom search untuk letter table
         $('#search-letter').on('keyup', function() {
             letterTable.search(this.value).draw();
+        });
+    }
+    @endif
+
+    function isi(){
+        let columns = [
+            {
+                "data": null, 
+                "sortable": false,
+                render: function(data, type, row, meta) {
+                    return meta.row + meta.settings._iDisplayStart + 1;
+                }
+            },
+            { data: "sent_date_formatted", name: "sent_date_formatted", defaultContent: '-' },
+            { data: "letter_code", name: "letter_code", defaultContent: '-' },
+            { data: "perihal", name: "perihal", defaultContent: '-' },
+            { data: "tujuan", name: "tujuan", defaultContent: '-' },
+            { data: "keterangan", name: "keterangan", defaultContent: '-' }
+        ];
+
+        // Kolom action hanya untuk employee
+        if(userRole === 'employee'){
+            columns.push({ 
+                data: "detail_file", 
+                name: "detail_file", 
+                orderable: false, 
+                searchable: false,
+                render: function(data, type, row) {
+                    return '<div class="detail-file-wrapper">' + data + '</div>';
+                }
+            });
+        }
+
+        // Initialize main DataTable
+        mainTable = $('#data-tabel').DataTable({
+            lengthChange: true,
+            processing: true,
+            serverSide: true,
+            destroy: true,
+            responsive: true,
+            ajax: {
+                url: "{{route('surat.keluar.list')}}",
+                type: 'POST',
+                error: function(xhr, error, code) {
+                    console.log('Ajax error:', xhr.responseText);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Error loading data'
+                    });
+                }
+            },
+            columns: columns,
+            language: {
+                processing: "Loading...",
+                emptyTable: "No data available",
+                zeroRecords: "No matching records found"
+            }
         });
     }
 
@@ -577,55 +611,10 @@
 
     $(document).ready(function() {
         // Initialize main DataTable
-        mainTable = $('#data-tabel').DataTable({
-            lengthChange: true,
-            processing: true,
-            serverSide: true,
-            destroy: true,
-            responsive: true,
-            ajax: {
-                url: "{{route('surat.keluar.list')}}",
-                type: 'POST',
-                error: function(xhr, error, code) {
-                    console.log('Ajax error:', xhr.responseText);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Error loading data'
-                    });
-                }
-            },
-            columns: [
-                {
-                    "data": null, 
-                    "sortable": false,
-                    render: function(data, type, row, meta) {
-                        return meta.row + meta.settings._iDisplayStart + 1;
-                    }
-                },
-                { data: "sent_date_formatted", name: "sent_date_formatted", defaultContent: '-' },
-                { data: "letter_code", name: "letter_code", defaultContent: '-' },
-                { data: "perihal", name: "perihal", defaultContent: '-' },
-                { data: "tujuan", name: "tujuan", defaultContent: '-' }, // KOLOM BARU
-                { data: "keterangan", name: "keterangan", defaultContent: '-' },
-                { 
-                    data: "detail_file", 
-                    name: "detail_file", 
-                    orderable: false, 
-                    searchable: false,
-                    render: function(data, type, row) {
-                        return '<div class="detail-file-wrapper">' + data + '</div>';
-                    }
-                }
-            ],
-            language: {
-                processing: "Loading...",
-                emptyTable: "No data available",
-                zeroRecords: "No matching records found"
-            }
-        });
+        isi();
 
-        // Event handlers
+        // Event handlers hanya untuk employee
+        @if(Auth::user()->role->name == 'employee')
         $("#pilih-letter").on("click", function() {
             initializeLetterTable();
             $('#modal-letter').modal('show');
@@ -773,10 +762,45 @@
                 }
             });
         });
+        @endif
     });
 </script>
 
 <style>
+.modal-dialog-centered {
+    max-height: 90vh;
+}
+
+.modal-content {
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-body {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 70vh;
+}
+
+/* Kompak file info display */
+#file-info-display .small {
+    font-size: 0.85em;
+}
+
+/* Responsive untuk layar kecil */
+@media (max-height: 768px) {
+    .modal-body {
+        max-height: 60vh;
+    }
+}
+
+@media (max-height: 600px) {
+    .modal-body {
+        max-height: 50vh;
+    }
+}
+
 .file-info-container {
     min-width: 200px;
 }

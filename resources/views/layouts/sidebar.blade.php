@@ -106,7 +106,7 @@
           <a href="{{route('supplier')}}" class="nav-link text-white {{ request()->routeIs('supplier') ? 'active' : '' }}">
             <i class="nav-icon fas fa-shipping-fast"></i>
             <p>
-              {{ __("supplier") }}
+              {{ __("Distributor") }}
             </p>
           </a>
         </li>

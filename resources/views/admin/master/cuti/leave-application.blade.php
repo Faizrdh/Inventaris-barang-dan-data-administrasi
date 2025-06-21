@@ -8,9 +8,12 @@
             <div class="card w-100">
                 <div class="card-header row">
                     <div class="d-flex justify-content-end align-items-center w-100">
-                        <button class="btn btn-success" type="button" data-toggle="modal" data-target="#LeaveApplicationModal" id="modal-button">
-                            <i class="fas fa-plus m-1"></i> {{__('Add New Application')}}
-                        </button>
+                        {{-- Tombol tambah data hanya untuk employee --}}
+                        @if(Auth::user()->role->name == 'employee')
+                            <button class="btn btn-success" type="button" data-toggle="modal" data-target="#LeaveApplicationModal" id="modal-button">
+                                <i class="fas fa-plus m-1"></i> {{__('tambah data')}}
+                            </button>
+                        @endif
                     </div>
                 </div>
 
@@ -60,6 +63,7 @@
                                                 <option value="CLTN">{{__("CLTN")}}</option>
                                                 <option value="Sakit">{{__("Sakit")}}</option>
                                                 <option value="Dinas Luar">{{__("Dinas Luar")}}</option>
+                                                <option value="Cuti Tahunan">{{__("Cuti Tahunan")}}</option>
                                             </select>
                                         </div>
                                         <div class="form-group">
@@ -110,7 +114,10 @@
                                     <th class="border-bottom-0">{{__("Tanggal Selesai")}}</th>
                                     <th class="border-bottom-0">{{__("Total Hari")}}</th>
                                     <th class="border-bottom-0">{{__("Status")}}</th>
-                                    <th class="border-bottom-0" width="1%">{{__("Actions")}}</th>
+                                    {{-- Kolom action hanya untuk employee --}}
+                                    @if(Auth::user()->role->name == 'employee')
+                                        <th class="border-bottom-0" width="1%">{{__("Actions")}}</th>
+                                    @endif
                                 </tr>
                             </thead>
                         </table>
@@ -137,13 +144,12 @@
             const start = new Date(startDate);
             const end = new Date(endDate);
             
-            // Check if end date is before start date
             if (end < start) {
                 Swal.fire({
                     position: "center",
                     icon: "warning",
-                    title: "{{__('Invalid Date')}}",
-                    text: "{{__('End date cannot be before start date')}}",
+                    title: "{{__('Tanggal gagal di muat')}}",
+                    text: "{{__('Tolong masukan tanggal sebelum mulai pengajuan')}}",
                     showConfirmButton: true
                 });
                 $("input[name='end_date']").val('');
@@ -151,7 +157,6 @@
                 return;
             }
             
-            // Calculate difference in days including the start day
             const diffTime = Math.abs(end - start);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
             $("input[name='total_days']").val(diffDays);
@@ -174,16 +179,15 @@
         return emailRegex.test(email);
     }
 
-    // PERBAIKAN: Function to save leave application
+    // Function to save leave application
     function saveLeaveApplication() {
         const formData = new FormData();
         
-        // Ambil semua data form
         formData.append('user_id', "{{ Auth::user()->id }}");
         formData.append('code', $("input[name='code']").val());
         formData.append('name', $("input[name='name']").val());
         formData.append('employee_id', $("input[name='employee_id']").val());
-        formData.append('email', $("input[name='email']").val()); // PERBAIKAN: Tambahkan email
+        formData.append('email', $("input[name='email']").val());
         formData.append('application_date', $("input[name='application_date']").val());
         formData.append('leave_type', $("select[name='leave_type']").val());
         formData.append('start_date', $("input[name='start_date']").val());
@@ -192,7 +196,6 @@
         formData.append('description', $("textarea[name='description']").val());
         formData.append('status', 'pending');
 
-        // Tambahkan file jika ada
         if ($("input[name='document']")[0].files[0]) {
             formData.append('document', $("input[name='document']")[0].files[0]);
         }
@@ -221,7 +224,6 @@
                 if (xhr.responseJSON && xhr.responseJSON.message) {
                     message = xhr.responseJSON.message;
                 } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                    // Handle validation errors
                     let errors = xhr.responseJSON.errors;
                     let errorMessages = [];
                     for (let field in errors) {
@@ -240,16 +242,15 @@
         });
     }
 
-    // PERBAIKAN: Function to update leave application
+    // Function to update leave application
     function updateLeaveApplication() {
         const formData = new FormData();
         
-        // Ambil semua data form
         formData.append('id', $("input[name='id']").val());
         formData.append('code', $("input[name='code']").val());
         formData.append('name', $("input[name='name']").val());
         formData.append('employee_id', $("input[name='employee_id']").val());
-        formData.append('email', $("input[name='email']").val()); // PERBAIKAN: Tambahkan email
+        formData.append('email', $("input[name='email']").val());
         formData.append('application_date', $("input[name='application_date']").val());
         formData.append('leave_type', $("select[name='leave_type']").val());
         formData.append('start_date', $("input[name='start_date']").val());
@@ -257,7 +258,6 @@
         formData.append('total_days', $("input[name='total_days']").val());
         formData.append('description', $("textarea[name='description']").val());
 
-        // Tambahkan file jika ada
         if ($("input[name='document']")[0].files[0]) {
             formData.append('document', $("input[name='document']")[0].files[0]);
         }
@@ -286,7 +286,6 @@
                 if (xhr.responseJSON && xhr.responseJSON.message) {
                     message = xhr.responseJSON.message;
                 } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                    // Handle validation errors
                     let errors = xhr.responseJSON.errors;
                     let errorMessages = [];
                     for (let field in errors) {
@@ -305,13 +304,13 @@
         });
     }
 
-    // PERBAIKAN: Function to reset form
+    // Function to reset form
     function resetForm() {
         $("input[name='id']").val('');
         $("input[name='code']").val('');
         $("input[name='name']").val('');
         $("input[name='employee_id']").val('');
-        $("input[name='email']").val(''); // PERBAIKAN: Tambahkan email
+        $("input[name='email']").val('');
         $("input[name='application_date']").val('');
         $("select[name='leave_type']").val('');
         $("input[name='start_date']").val('');
@@ -348,7 +347,7 @@
                     name: "employee_id"
                 },
                 {
-                    data: "email", // PERBAIKAN: Tambahkan kolom email
+                    data: "email",
                     name: "email"
                 },
                 {
@@ -389,12 +388,15 @@
                         return `<span class="badge ${badgeClass}">${displayText}</span>`;
                     }
                 },
+                {{-- Kolom action hanya untuk employee --}}
+                @if(Auth::user()->role->name == 'employee')
                 {
                     data: "actions",
                     name: "actions",
                     orderable: false,
                     searchable: false
                 }
+                @endif
             ]
         });
 
@@ -405,26 +407,20 @@
         $('#modal-button').on('click', function() {
             resetForm();
             generateLeaveCode();
-            // Set application date to today
             const today = new Date().toISOString().split('T')[0];
             $("input[name='application_date']").val(today);
             $('#LeaveApplicationModalLabel').text("{{__('Create Leave Application')}}");
             $('#save').text("{{__('Save')}}");
         });
 
-        // PERBAIKAN: Event handler for save button
+        // Event handler for save button
         $('#save').on('click', function() {
-            console.log('Save button clicked');
-            
-            // Delay untuk memastikan DOM ready
             setTimeout(function() {
                 let errors = [];
                 
-                // Validasi field yang required
                 if (!$("input[name='name']").val().trim()) errors.push('Nama Pegawai');
                 if (!$("input[name='employee_id']").val().trim()) errors.push('NIP');
                 
-                // PERBAIKAN: Validasi email
                 const email = $("input[name='email']").val().trim();
                 if (!email) {
                     errors.push('Email');
@@ -437,7 +433,6 @@
                 if (!$("input[name='start_date']").val()) errors.push('Tanggal Mulai');
                 if (!$("input[name='end_date']").val()) errors.push('Tanggal Selesai');
                 
-                // Validasi description
                 let desc = $("textarea[name='description']").val();
                 if (!desc || desc.trim() === '') {
                     errors.push('Deskripsi');
@@ -454,7 +449,6 @@
                     return;
                 }
                 
-                // Lanjutkan save
                 if ($("input[name='id']").val()) {
                     updateLeaveApplication();
                 } else {
@@ -463,7 +457,8 @@
             }, 100);
         });
 
-        // Event handler for edit button
+        // Event handler for edit button - hanya untuk employee
+        @if(Auth::user()->role->name == 'employee')
         $(document).on("click", ".edit", function() {
             let id = $(this).data('id');
             $.ajax({
@@ -481,7 +476,7 @@
                     $("input[name='code']").val(data.code);
                     $("input[name='name']").val(data.name);
                     $("input[name='employee_id']").val(data.employee_id);
-                    $("input[name='email']").val(data.email); // PERBAIKAN: Tambahkan email
+                    $("input[name='email']").val(data.email);
                     $("input[name='application_date']").val(data.application_date);
                     $("select[name='leave_type']").val(data.leave_type);
                     $("input[name='start_date']").val(data.start_date);
@@ -505,7 +500,7 @@
             });
         });
 
-        // Event handler for delete button
+        // Event handler for delete button - hanya untuk employee
         $(document).on("click", ".delete", function() {
             let id = $(this).data('id');
             const swalWithBootstrapButtons = Swal.mixin({
@@ -559,8 +554,9 @@
                 }
             });
         });
+        @endif
 
-        // Event handler for detail button
+        // Event handler for detail button - semua role bisa akses
         $(document).on("click", ".detail", function() {
             let id = $(this).data('id');
             $.ajax({
