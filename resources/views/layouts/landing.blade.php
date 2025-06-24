@@ -198,8 +198,8 @@
        <div class="d-flex align-items-center">
     <img src="{{ asset('yankes.png') }}" alt="Logo" class="logo-img" style="width: 80px; height: auto;">
       <div class="ms-3 text-white">
-          <h1 class="mb-0 font-weight-bold" style="font-size: 28px;">SIMADA</h1>
-          <p class="mb-0" style="font-size: 18px;">Sistem Informasi Manajemen Administrasi & Inventaris</p>
+          <h1 class="mb-0 font-weight-bold" style="font-size: 28px;">PRIMA</h1>
+          <p class="mb-0" style="font-size: 18px;"> Portal Registrasi Inventaris dan Manajemen Administrasi</p>
         </div>
 </div>
 

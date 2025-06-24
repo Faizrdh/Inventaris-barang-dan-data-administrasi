@@ -8,7 +8,7 @@
   <link rel="shortcut icon" type="image/png" href="{{ asset('yankes.png') }}">
   <link rel="apple-touch-icon" href="{{ asset('yankes.png') }}">
     <!-- Vite app.css -->
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+   {{-- @vite(['resources/css/app.css', 'resources/js/app.js']) --}}
   <!-- Google Font: Source Sans Pro -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
   <!-- Font Awesome -->
