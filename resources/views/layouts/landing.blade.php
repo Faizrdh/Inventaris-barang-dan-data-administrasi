@@ -199,7 +199,7 @@
     <img src="{{ asset('yankes.png') }}" alt="Logo" class="logo-img" style="width: 80px; height: auto;">
       <div class="ms-3 text-white">
           <h1 class="mb-0 font-weight-bold" style="font-size: 28px;">PRIMA</h1>
-          <p class="mb-0" style="font-size: 18px;"> Portal Registrasi Inventaris dan Manajemen Administrasi</p>
+          <p class="mb-0" style="font-size: 18px;"> Portal Registrasi Inventaris dan Manajemen administrasi</p>
         </div>
 </div>
 
