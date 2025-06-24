@@ -66,7 +66,7 @@
           <input type="password" class="form-control" placeholder="Password" id="pw">
           <div class="input-group-append">
             <div class="input-group-text" style="max-width:40px !important;">
-              <!-- nah disini w kasi id -->
+              <!-- berikan id disini -->
               <span class="fas fa-eye" id="icon-pw"></span>
             </div>
           </div>

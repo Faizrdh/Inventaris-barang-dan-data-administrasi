@@ -22,16 +22,42 @@ use App\Http\Controllers\LeaveApplicationController;
 use App\Http\Controllers\LeaveApprovalController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportFinancialController;
+use App\Http\Controllers\LandingPageController;
+use App\Http\Controllers\CategoryLetterController;
+use App\Http\Controllers\LeaveValidationController;
+use App\Http\Controllers\LetterController;
+use App\Http\Controllers\ReportLetterInController;
+use App\Http\Controllers\ReportLettersInController;
+use App\Http\Controllers\SenderLetterController;
+use App\Http\Controllers\LettersInController;
+use App\Http\Controllers\LettersOutController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ReportLettersOutController;
+use App\Http\Controllers\ReturnController;
 
-
-Route::middleware(["localization"])-> group(function(){
-    Route::get('/',[LoginController::class,'index'])->name('login');
-    Route::post('/',[LoginController::class,'auth'])->name('login.auth');
+Route::middleware(["localization"])->group(function(){
+    // Jadikan LandingPage sebagai halaman utama
+    Route::get('/',[LandingPageController::class,'index'])->name('landing');
+    
+    // Pindahkan login ke path /login atau /auth
+    Route::get('/login',[LoginController::class,'index'])->name('login');
+    Route::post('/login',[LoginController::class,'auth'])->name('login.auth');
 });
 
-Route::middleware(['auth', "localization"])-> group(function(){
+Route::middleware(['auth', "localization"])->group(function(){
     Route::get('/dashboard',[DashboardController::class,'index'])->name('dashboard');
 
+   Route::middleware(['auth'])->group(function () {
+    // Notification endpoints - SUPER SIMPLE
+        Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'getNotifications']);
+    Route::post('/notifications/mark-read', [App\Http\Controllers\NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/cleanup-deleted', [App\Http\Controllers\NotificationController::class, 'cleanupDeletedItems']);
+    Route::get('/notifications/counts', [App\Http\Controllers\NotificationController::class, 'getCounts']);
+    Route::post('/notifications/clear-read', [App\Http\Controllers\NotificationController::class, 'clearRead']);
+    
+    // Test endpoint (bisa dihapus nanti)
+    Route::get('/notifications/test', [NotificationController::class, 'test']);
+});
     // barang
     Route::controller(ItemController::class)->prefix("barang")->group(function(){
         Route::get('/','index')->name('barang');
@@ -58,8 +84,6 @@ Route::middleware(['auth', "localization"])-> group(function(){
         });
     });
 
-
-
     // satuan barang
     Route::controller(UnitController::class)->prefix('/barang/satuan')->group(function(){
         Route::get('/','index')->name('barang.satuan');
@@ -71,8 +95,6 @@ Route::middleware(['auth', "localization"])-> group(function(){
             Route::delete('/hapus','delete')->name('barang.satuan.delete');
         });
     });
-
-
 
     // merk barang
     Route::controller(BrandController::class)->prefix("/barang/merk")->group(function(){
@@ -86,6 +108,79 @@ Route::middleware(['auth', "localization"])-> group(function(){
         });
     });
 
+    //Jenis Surat
+    Route::prefix('letter/category')->name('letter.category.')->group(function() {
+        Route::get('/', [CategoryLetterController::class, 'index'])->name('index');
+        Route::get('/list', [CategoryLetterController::class, 'list'])->name('list');
+        Route::post('/save', [CategoryLetterController::class, 'save'])->name('save');
+        Route::post('/detail', [CategoryLetterController::class, 'detail'])->name('detail');
+        Route::put('/update', [CategoryLetterController::class, 'update'])->name('update');
+        Route::delete('/delete', [CategoryLetterController::class, 'delete'])->name('delete');
+    });
+
+    // Routes untuk Letter Management
+    Route::prefix('surat')->name('surat.')->group(function () {
+        Route::get('/', [LetterController::class, 'index'])->name('index');
+        Route::get('/list', [LetterController::class, 'list'])->name('list');
+        Route::post('/save', [LetterController::class, 'save'])->name('save');
+        Route::post('/detail', [LetterController::class, 'detail'])->name('detail');
+        Route::post('/detail-by-code', [LetterController::class, 'detailByCode'])->name('detail-by-code');
+        Route::put('/update', [LetterController::class, 'update'])->name('update');
+        Route::delete('/delete', [LetterController::class, 'delete'])->name('delete');
+        
+        // File Management Routes
+        Route::get('/download-file', [LetterController::class, 'downloadFile'])->name('download-file');
+        Route::get('/view-file', [LetterController::class, 'viewFile'])->name('view-file');
+        Route::delete('/delete-file', [LetterController::class, 'deleteFile'])->name('delete-file');
+    });
+
+    // SenderLetter Routes
+    Route::prefix('sender-letter')->group(function () {
+        Route::get('/', [SenderLetterController::class, 'index'])->name('sender_letter.index');
+        Route::get('/list', [SenderLetterController::class, 'list'])->name('sender_letter.list');
+        Route::post('/save', [SenderLetterController::class, 'save'])->name('sender_letter.save');
+        Route::post('/detail', [SenderLetterController::class, 'detail'])->name('sender_letter.detail');
+        Route::put('/update', [SenderLetterController::class, 'update'])->name('sender_letter.update');
+        Route::delete('/delete', [SenderLetterController::class, 'delete'])->name('sender_letter.delete');
+    });
+
+    // Routes Surat Masuk (LettersIn)
+    Route::prefix('surat-masuk')->name('surat.masuk.')->group(function () {
+        Route::get('/', [LettersInController::class, 'index'])->name('index');
+        Route::post('/list', [LettersInController::class, 'list'])->name('list');
+        Route::post('/list-letters', [LettersInController::class, 'listLetters'])->name('list.letters');
+        Route::post('/letter-code', [LettersInController::class, 'getLetterByCode'])->name('letter.code');
+        Route::post('/save', [LettersInController::class, 'store'])->name('save');
+        Route::post('/detail', [LettersInController::class, 'show'])->name('detail');
+        Route::put('/update', [LettersInController::class, 'update'])->name('update');
+        Route::delete('/delete', [LettersInController::class, 'destroy'])->name('delete');
+    });
+
+    //surat keluar
+    Route::prefix('surat-keluar')->name('surat.keluar.')->group(function () {
+        Route::get('/', [LettersOutController::class, 'index'])->name('index');
+        Route::post('/list', [LettersOutController::class, 'list'])->name('list');
+        Route::post('/list-letters', [LettersOutController::class, 'listLetters'])->name('list.letters');
+        Route::post('/letter-code', [LettersOutController::class, 'getLetterByCode'])->name('letter.code');
+        Route::post('/store', [LettersOutController::class, 'store'])->name('store');
+        Route::put('/update', [LettersOutController::class, 'update'])->name('update');
+        Route::post('/show', [LettersOutController::class, 'show'])->name('show');
+        Route::delete('/destroy', [LettersOutController::class, 'destroy'])->name('destroy');
+    });
+
+    // Laporan Surat Keluar
+    Route::get('/laporan/surat-keluar', [ReportLettersOutController::class, 'index'])->name('laporan.surat-keluar');
+    Route::post('/laporan/surat-keluar/list', [ReportLettersOutController::class, 'list'])->name('laporan.surat-keluar.list');
+    Route::post('/laporan/surat-keluar/export-excel', [ReportLettersOutController::class, 'exportExcel'])->name('laporan.surat-keluar.export-excel');
+    Route::post('/laporan/surat-keluar/export-pdf', [ReportLettersOutController::class, 'exportPdf'])->name('laporan.surat-keluar.export-pdf');
+
+    // Laporan Surat Masuk
+    Route::prefix('report-letter')->group(function () {
+        Route::get('/laporan/surat-masuk', [ReportLettersInController::class, 'index'])->name('laporan.surat-masuk');
+        Route::get('/laporan/surat-masuk/list', [ReportLettersInController::class, 'list'])->name('laporan.surat-masuk.list');
+        Route::post('/laporan/surat-masuk/export-excel', [ReportLettersInController::class, 'exportExcel'])->name('laporan.surat-masuk.export-excel');
+        Route::post('/laporan/surat-masuk/export-pdf', [ReportLettersInController::class, 'exportPdf'])->name('laporan.surat-masuk.export-pdf');
+    });
 
     // customer (izin untuk staff hanya read)
     Route::controller(CustomerController::class)->prefix('/customer')->group(function(){
@@ -98,7 +193,6 @@ Route::middleware(['auth', "localization"])-> group(function(){
             Route::delete('/hapus','delete')->name('customer.delete');
         });
     });
-
 
     // supplier (izin untuk staff hanya read)
     Route::controller(SupplierController::class)->prefix('/supplier')->group(function(){
@@ -113,51 +207,48 @@ Route::middleware(['auth', "localization"])-> group(function(){
     });
 
     //route Cuti 
-    // Routes untuk pengajuan cuti
-Route::prefix('admin/cuti')->middleware(['auth'])->group(function () {
-    // Pengajuan cuti
-    Route::get('/leave-application', [LeaveApplicationController::class, 'index'])->name('leave-application'); // Route untuk pengajuan cuti
-    Route::get('/leave-application/list', [LeaveApplicationController::class, 'list'])->name('leave-application.list');
-    Route::post('/leave-application/save', [LeaveApplicationController::class, 'save'])->name('leave-application.save');
-    Route::post('/leave-application/detail', [LeaveApplicationController::class, 'detail'])->name('leave-application.detail');
-    Route::post('/leave-application/update', [LeaveApplicationController::class, 'update'])->name('leave-application.update');
-    Route::post('/leave-application/delete', [LeaveApplicationController::class, 'delete'])->name('leave-application.delete');
-});
-
-// Validasi cuti (untuk kepala unit)
-// Rute validasi cuti (hanya bisa diakses oleh administrator)
-Route::middleware(['admin.check'])->group(function () {
-    Route::get('/admin/leave-validation', [App\Http\Controllers\LeaveValidationController::class, 'index'])->name('leave-validation');
-    Route::post('/admin/leave-validation/list', [App\Http\Controllers\LeaveValidationController::class, 'list'])->name('leave-validation.list');
-    Route::post('/admin/leave-validation/detail', [App\Http\Controllers\LeaveValidationController::class, 'detail'])->name('leave-validation.detail');
-    Route::post('/admin/leave-validation/approve', [App\Http\Controllers\LeaveValidationController::class, 'approve'])->name('leave-validation.approve');
-    Route::post('/admin/leave-validation/reject', [App\Http\Controllers\LeaveValidationController::class, 'reject'])->name('leave-validation.reject');
-});
-
- 
+    Route::prefix('leave-application')->name('leave-application.')->group(function () {
+        Route::get('/', [LeaveApplicationController::class, 'index'])->name('index');
+        Route::get('/list', [LeaveApplicationController::class, 'list'])->name('list');
+        Route::post('/save', [LeaveApplicationController::class, 'save'])->name('save');
+        Route::post('/update', [LeaveApplicationController::class, 'update'])->name('update');
+        Route::post('/delete', [LeaveApplicationController::class, 'delete'])->name('delete');
+        Route::post('/detail', [LeaveApplicationController::class, 'detail'])->name('detail');
+    });
 
     // Transaksi  masuk
-    Route::controller(TransactionInController::class)->prefix('/transaksi/masuk')->group(function(){
-        Route::get('/','index')->name('transaksi.masuk');
-        Route::get('/list','list')->name('transaksi.masuk.list');
-        Route::post('/save','save')->name('transaksi.masuk.save');
-        Route::post('/detail','detail')->name('transaksi.masuk.detail');
-        Route::put('/update','update')->name('transaksi.masuk.update');
-        Route::delete('/delete','delete')->name('transaksi.masuk.delete');
-        Route::get('/barang/list/in','listIn')->name('barang.list.in');
+Route::middleware(['auth'])->group(function () {
+    
+   
+    // Routes untuk Transaksi Masuk
+   Route::prefix('transaksi-masuk')->group(function () {
+    Route::get('/', [TransactionInController::class, 'index'])->name('transaksi.masuk.index');
+    Route::get('/list', [TransactionInController::class, 'list'])->name('transaksi.masuk.list');
+    Route::post('/save', [TransactionInController::class, 'save'])->name('transaksi.masuk.save');
+    Route::post('/detail', [TransactionInController::class, 'detail'])->name('transaksi.masuk.detail');
+    Route::put('/update', [TransactionInController::class, 'update'])->name('transaksi.masuk.update');
+    Route::delete('/delete', [TransactionInController::class, 'delete'])->name('transaksi.masuk.delete');
     });
-
-
+    
+});
 
     // Transaksi keluar
-    Route::controller(TransactionOutController::class)->prefix('/transaksi/keluar')->group(function(){
-        Route::get('/','index')->name('transaksi.keluar');
-        Route::get('/list','list')->name('transaksi.keluar.list');
-        Route::post('/simpan','save')->name('transaksi.keluar.save');
-        Route::post('/info','detail')->name('transaksi.keluar.detail');
-        Route::put('/ubah','update')->name('transaksi.keluar.update');
-        Route::delete('/hapus','delete')->name('transaksi.keluar.delete');
-    });
+   // Tambahkan route ini ke dalam file routes/web.php
+
+Route::controller(TransactionOutController::class)->prefix('/transaksi/keluar')->group(function(){
+    Route::get('/','index')->name('transaksi.keluar');
+    Route::get('/list','list')->name('transaksi.keluar.list');
+    Route::post('/simpan','save')->name('transaksi.keluar.simpan');
+    Route::post('/info','detail')->name('transaksi.keluar.info');
+    Route::put('/ubah','update')->name('transaksi.keluar.ubah');
+    Route::delete('/hapus','delete')->name('transaksi.keluar.hapus');
+    Route::post('/cek-stok','getCurrentStock')->name('transaksi.keluar.cek-stok');
+    
+    // Route stock
+    Route::get('/stock','getCurrentStock')->name('transaksi.keluar.stock');
+    Route::post('/check-stock','checkStockAvailability')->name('transaksi.keluar.check-stock');
+    Route::get('/available-items','getAvailableItems')->name('transaksi.keluar.available-items');
+});
 
     // laporan barang masuk
     Route::controller(ReportGoodsInController::class)->prefix('/laporan/masuk')->group(function(){
@@ -171,11 +262,18 @@ Route::middleware(['admin.check'])->group(function () {
         Route::get('/list','list')->name('laporan.keluar.list');
     });
 
-    // laporan stok barang
-    Route::controller(ReportStockController::class)->prefix('/laporan/stok')->group(function(){
-        Route::get('/','index')->name('laporan.stok');
-        Route::get('/list','list')->name('laporan.stok.list');
-        Route::get('/grafik','grafik')->name('laporan.stok.grafik');
+    // Stock Report Routes
+    Route::controller(ReportStockController::class)->prefix('laporan/stok')->group(function(){
+        Route::get('/', 'index')->name('laporan.stok');
+        Route::get('/list', 'list')->name('laporan.stok.list');
+        Route::get('/grafik', 'grafik')->name('laporan.stok.grafik');
+    });
+
+    // Alternative stock report routes untuk backward compatibility
+    Route::prefix('admin/master')->group(function () {
+        Route::get('/laporan/stok', [ReportStockController::class, 'index'])->name('admin.master.laporan.stok');
+        Route::get('/laporan/stok/list', [ReportStockController::class, 'list'])->name('admin.master.laporan.stok.list');
+        Route::get('/laporan/stok/grafik', [ReportStockController::class, 'grafik'])->name('admin.master.laporan.stok.grafik');
     });
 
     // laporan penghasilan
@@ -193,16 +291,30 @@ Route::middleware(['admin.check'])->group(function () {
         });
     });
 
-    // Route::get('/pengaturan/web',[WebSettingController::class,'index'])->name('settings.web');
-    // Route::get('/pengaturan/web/detail',[WebSettingController::class,'detail'])->name('settings.web.detail');
-    // Route::post('/pengaturan/web/detail/role',[WebSettingController::class,'detailRole'])->name('settings.web.detail.role');
-    // Route::put('/pengaturan/web/update',[WebSettingController::class,'update'])->name('settings.web.update');
-
     // pengaturan profile
     Route::get('/settings/profile',[ProfileController::class,'index'])->name('settings.profile');
     Route::post('/settings/profile',[ProfileController::class,'update'])->name('settings.profile.update');
 
     // logout
     Route::get('/logout',[LoginController::class,'logout'])->name('login.delete');
-
 });
+
+Route::middleware(['auth'])->group(function () {
+    // Leave Validation Routes (Admin Only)
+    Route::prefix('admin/leave-validation')->name('leave-validation.')->group(function () {
+        Route::get('/', [LeaveValidationController::class, 'index'])->name('index');
+        Route::get('/list', [LeaveValidationController::class, 'list'])->name('list');
+        Route::post('/detail', [LeaveValidationController::class, 'detail'])->name('detail');
+        Route::post('/approve', [LeaveValidationController::class, 'approve'])->name('approve');
+        Route::post('/reject', [LeaveValidationController::class, 'reject'])->name('reject');
+        Route::post('/process', [LeaveValidationController::class, 'process'])->name('process');
+    });
+});
+Route::get('/returns', [ReturnController::class, 'index'])->name('return.index');
+Route::get('/returns/list', [ReturnController::class, 'list'])->name('return.list');
+Route::post('/returns/save', [ReturnController::class, 'save'])->name('return.save');
+Route::post('/returns/detail', [ReturnController::class, 'detail'])->name('return.detail');
+Route::put('/returns/update', [ReturnController::class, 'update'])->name('return.update');
+Route::delete('/returns/delete', [ReturnController::class, 'delete'])->name('return.delete');
+;
+

@@ -9,180 +9,267 @@ use Yajra\DataTables\DataTables;
 use App\Models\LeaveApplication;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\LeaveStatusUpdateMail;
 
 class LeaveValidationController extends Controller
 {
-    // **
-    //  * Constructor untuk middleware
-    //  */
-  
-    /**
-     * Menampilkan halaman validasi cuti.
-     *
-     * @return \Illuminate\View\View
-     */
     public function index(): View
     {
         return view('admin.master.cuti.leave-validation');
     }
 
-    /**
-     * Menampilkan list pengajuan cuti yang perlu divalidasi dalam format DataTables.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function list(Request $request): JsonResponse
     {
         try {
-            // Ambil data leave application status pending
-            $leaveApplications = LeaveApplication::where('status', 'pending')
-                                                 ->latest()
-                                                 ->get();
-
-            // Pastikan response diberikan dalam kondisi AJAX
-            if ($request->ajax()) {
-                return DataTables::of($leaveApplications)
-                    ->addColumn('tindakan', function ($data) {
-                        // Membuat tombol aksi untuk DataTables
-                        $button = "<button class='validasi btn btn-success m-1' id='" . $data->id . "'><i class='fas fa-check m-1'></i> " . __("validate") . "</button>";
-                        $button .= "<button class='tolak btn btn-danger m-1' id='" . $data->id . "'><i class='fas fa-times m-1'></i> " . __("reject") . "</button>";
-                        $button .= "<button class='detail btn btn-info m-1' id='" . $data->id . "'><i class='fas fa-eye m-1'></i> " . __("detail") . "</button>";
-                        
-                        if ($data->file_izin) {
-                            $button .= "<a href='" . url('storage/' . $data->file_izin) . "' target='_blank' class='btn btn-secondary m-1'><i class='fas fa-file-pdf m-1'></i> " . __("view") . "</a>";
-                        }
-                        return $button;
-                    })
-                    ->rawColumns(['tindakan'])
-                    ->make(true);
+            if (!$request->ajax()) {
+                return response()->json(['message' => 'Invalid request'], 400);
             }
 
-            // Jika bukan AJAX, tetap harus ada response yang dikembalikan
-            return response()->json([
-                'message' => 'Invalid request. Expected an AJAX request.'
-            ], 400);
+            $leaveApplications = LeaveApplication::with(['user', 'approver'])->latest();
+
+            return DataTables::of($leaveApplications)
+                ->addColumn('tindakan', fn($data) => $this->buildValidationActionButtons($data))
+                ->addColumn('status_badge', fn($data) => $this->getStatusBadge($data->status))
+                ->addColumn('application_date_formatted', fn($data) => $data->application_date?->format('Y-m-d'))
+                ->addColumn('start_date_formatted', fn($data) => $data->start_date?->format('Y-m-d'))
+                ->addColumn('end_date_formatted', fn($data) => $data->end_date?->format('Y-m-d'))
+                ->addColumn('approved_at_formatted', fn($data) => $data->approved_at?->format('Y-m-d H:i'))
+                ->addColumn('approver_name', fn($data) => $data->approver?->name ?? '-')
+                ->rawColumns(['tindakan', 'status_badge'])
+                ->make(true);
+
         } catch (\Exception $e) {
             Log::error('Error in leave validation list: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Error occurred'], 500);
         }
     }
 
-    /**
-     * Mengambil detail pengajuan cuti.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
+    // Method untuk mendapatkan status badge (removed 'processed' status)
+    private function getStatusBadge($status): string
+    {
+        $badges = [
+            'pending' => '<span class="badge badge-warning"><i class="fas fa-clock"></i> Pending</span>',
+            'approved' => '<span class="badge badge-success"><i class="fas fa-check"></i> Approved</span>',
+            'rejected' => '<span class="badge badge-danger"><i class="fas fa-times"></i> Rejected</span>',
+        ];
+       
+        return $badges[$status] ?? '<span class="badge badge-secondary">Unknown</span>';
+    }
+
+    // Method untuk detail
     public function detail(Request $request): JsonResponse
     {
         try {
-            $validated = $request->validate([
-                'id' => 'required|integer'
-            ]);
-
-            $leaveApplication = LeaveApplication::find($validated['id']);
+            $validated = $request->validate(['id' => 'required|integer']);
+            
+            $leaveApplication = LeaveApplication::with(['user', 'approver'])->find($validated['id']);
 
             if (!$leaveApplication) {
-                return response()->json(["message" => __("not found.")], 404);
+                return response()->json([
+                    "success" => false,
+                    "message" => __("Leave application not found.")
+                ], 404);
             }
 
-            return response()->json(["data" => $leaveApplication])->setStatusCode(200);
-        } catch (\Exception $e) {
-            Log::error('Error in get leave validation detail: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+                "success" => true,
+                "data" => $leaveApplication
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error in get leave application detail: ' . $e->getMessage());
+            return response()->json([
+                "success" => false,
+                "message" => 'An error occurred: ' . $e->getMessage()
             ], 500);
         }
     }
 
-    /**
-     * Memvalidasi (menyetujui) pengajuan cuti.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function approve(Request $request): JsonResponse
     {
         try {
+            // Cek role admin
+            if(Auth::user()->role->name != 'admin' && Auth::user()->role_id !== 1){
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access'
+                ], 403);
+            }
+
             $validated = $request->validate([
                 'id' => 'required|integer',
-                'catatan' => 'nullable|string|max:255'
+                'catatan_validator' => 'nullable|string|max:255'
             ]);
 
             $leaveApplication = LeaveApplication::find($validated['id']);
 
             if (!$leaveApplication) {
-                return response()->json(["message" => __("not found.")], 404);
+                return response()->json([
+                    "success" => false,
+                    "message" => __("Leave application not found.")
+                ], 404);
             }
 
             if ($leaveApplication->status !== 'pending') {
-                return response()->json(["message" => __("application already processed")], 400);
+                return response()->json([
+                    "success" => false,
+                    "message" => __("Application already processed")
+                ], 400);
             }
 
+            $oldStatus = $leaveApplication->status;
+            
             $leaveApplication->status = 'approved';
             $leaveApplication->approved_by = Auth::id();
             $leaveApplication->approved_at = now();
-            $leaveApplication->catatan_validator = $request->catatan;
+            $leaveApplication->catatan_validator = $request->catatan_validator;
 
             $status = $leaveApplication->save();
 
             if (!$status) {
-                return response()->json(["message" => __("failed to approve")], 400);
+                return response()->json([
+                    "success" => false,
+                    "message" => __("Failed to approve application")
+                ], 400);
             }
 
-            return response()->json(["message" => __("application approved successfully")])->setStatusCode(200);
+            // Kirim email notifikasi ke pegawai dengan validasi yang lebih baik
+            $this->sendStatusUpdateEmail($leaveApplication, $oldStatus);
+
+            return response()->json([
+                "success" => true,
+                "message" => __("Leave application approved successfully")
+            ])->setStatusCode(200);
+            
         } catch (\Exception $e) {
             Log::error('Error in approve leave application: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+                'success' => false,
+                'error' => true,
+                'message' => 'Terjadi kesalahan saat menyetujui pengajuan',
+                'details' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
 
-    /**
-     * Menolak pengajuan cuti.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
+    private function sendStatusUpdateEmail(LeaveApplication $leaveApplication, string $oldStatus): void
+    {
+        try {
+            if (!$leaveApplication->email) {
+                Log::warning('No email address found for leave application: ' . $leaveApplication->code);
+                return;
+            }
+
+            if (!filter_var($leaveApplication->email, FILTER_VALIDATE_EMAIL)) {
+                Log::error('Invalid email format for leave application: ' . $leaveApplication->email);
+                return;
+            }
+
+            Mail::to($leaveApplication->email)->send(new LeaveStatusUpdateMail($leaveApplication, $oldStatus));
+            Log::info('Status update email sent successfully', [
+                'email' => $leaveApplication->email,
+                'application_code' => $leaveApplication->code,
+                'new_status' => $leaveApplication->status,
+                'old_status' => $oldStatus
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to send status update email: ' . $e->getMessage(), [
+                'email' => $leaveApplication->email,
+                'application_id' => $leaveApplication->id,
+                'application_code' => $leaveApplication->code
+            ]);
+        }
+    }
+
     public function reject(Request $request): JsonResponse
     {
         try {
+            // Cek role admin
+            if(Auth::user()->role->name != 'admin' && Auth::user()->role_id !== 1){
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access'
+                ], 403);
+            }
+
             $validated = $request->validate([
                 'id' => 'required|integer',
-                'catatan' => 'required|string|max:255'
+                'catatan_validator' => 'required|string|max:255'
             ]);
 
             $leaveApplication = LeaveApplication::find($validated['id']);
 
             if (!$leaveApplication) {
-                return response()->json(["message" => __("not found.")], 404);
+                return response()->json([
+                    "success" => false,
+                    "message" => __("Leave application not found.")
+                ], 404);
             }
 
             if ($leaveApplication->status !== 'pending') {
-                return response()->json(["message" => __("application already processed")], 400);
+                return response()->json([
+                    "success" => false,
+                    "message" => __("Application already processed")
+                ], 400);
             }
+
+            $oldStatus = $leaveApplication->status;
 
             $leaveApplication->status = 'rejected';
             $leaveApplication->approved_by = Auth::id();
             $leaveApplication->approved_at = now();
-            $leaveApplication->catatan_validator = $request->catatan;
+            $leaveApplication->catatan_validator = $request->catatan_validator;
 
             $status = $leaveApplication->save();
 
             if (!$status) {
-                return response()->json(["message" => __("failed to reject")], 400);
+                return response()->json([
+                    "success" => false,
+                    "message" => __("Failed to reject application")
+                ], 400);
             }
 
-            return response()->json(["message" => __("application rejected successfully")])->setStatusCode(200);
+            // Kirim email notifikasi ke pegawai
+            $this->sendStatusUpdateEmail($leaveApplication, $oldStatus);
+
+            return response()->json([
+                "success" => true,
+                "message" => __("Leave application rejected successfully")
+            ])->setStatusCode(200);
+            
         } catch (\Exception $e) {
             Log::error('Error in reject leave application: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+                'success' => false,
+                'error' => true,
+                'message' => 'Terjadi kesalahan saat menolak pengajuan',
+                'details' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
+    }
+
+    private function buildValidationActionButtons($data): string
+    {
+        $buttons = [];
+        
+        // Hanya tampilkan action buttons jika status masih pending (removed process button)
+        if ($data->status === 'pending') {
+            $buttons[] = "<button class='approve btn btn-success btn-sm m-1' data-id='{$data->id}'><i class='fas fa-check'></i> " . __("Approve") . "</button>";
+            $buttons[] = "<button class='reject btn btn-danger btn-sm m-1' data-id='{$data->id}'><i class='fas fa-times'></i> " . __("Reject") . "</button>";
+        }
+        
+        // Detail button selalu ada
+        $buttons[] = "<button class='detail btn btn-secondary btn-sm m-1' data-id='{$data->id}'><i class='fas fa-eye'></i> " . __("Detail") . "</button>";
+
+        // Document button jika ada document
+        if ($data->document_path) {
+            $documentUrl = asset('storage/' . $data->document_path);
+            $buttons[] = "<a href='{$documentUrl}' target='_blank' class='btn btn-outline-primary btn-sm m-1'><i class='fas fa-file-pdf'></i> " . __("Document") . "</a>";
+        }
+
+        return implode('', $buttons);
     }
 }

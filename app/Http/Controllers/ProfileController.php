@@ -3,52 +3,81 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\View\View;
 use App\Models\User;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
 class ProfileController extends Controller
 {
-    public function index():View
+    public function index()
     {
-        return view('admin.settings.profile');
+        return view('admin.settings.profile'); 
     }
 
-    public function update(Request $request):JsonResponse
+    public function update(Request $request)
     {
-        $id = $request -> id;
-        $user = User::find($id);
-        if(!empty($request->file('image'))){
-          if(Storage::disk('local')->exists('public/profile/'.$user->image)){
-           Storage::delete('public/profile/'.$user->image);
-          }
-          $image = $request->file('image');
-          $image -> storeAs('public/profile/',$image->hashName());
-          $user -> image = $image->hashName();
-        }
-        if(!empty($request->password)){
-            $user -> password = $request -> password;
-        }
-        if($request->has('name')){
-            $user -> name = $request -> name;
-        }
-        if($request->has('username')){
-            $user -> username = $request -> username;
+        try {
+            $id = $request->id;
+            $user = User::find($id);
+            
+            if (!$user) {
+                return response()->json([
+                    "message" => __("User not found")
+                ])->setStatusCode(404);
+            }
 
-        }
+            // Handle image upload
+            if ($request->hasFile('image')) {
+                // Delete old image if exists
+                if (!empty($user->image) && Storage::disk('public')->exists('profile/' . $user->image)) {
+                    Storage::disk('public')->delete('profile/' . $user->image);
+                }
+                
+                // Store new image
+                $image = $request->file('image');
+                $imageName = time() . '_' . $image->getClientOriginalName();
+                $image->storeAs('profile', $imageName, 'public');
+                $user->image = $imageName;
+            }
 
-        if(!empty($request->image)){
-            $user -> image = $request -> image;
+            // Handle password update
+            if (!empty($request->password)) {
+                $user->password = Hash::make($request->password);
+            }
+
+            // Handle name update
+            if ($request->has('name') && !empty($request->name)) {
+                $user->name = $request->name;
+            }
+
+            // Handle username update
+            if ($request->has('username') && !empty($request->username)) {
+                $user->username = $request->username;
+            }
+
+            // Save user data
+            $status = $user->save();
+            
+            if (!$status) {
+                return response()->json([
+                    "message" => __("data failed to change")
+                ])->setStatusCode(400);
+            }
+
+            return response()->json([
+                "message" => __("data changed successfully"),
+                "user" => [
+                    'name' => $user->name,
+                    'username' => $user->username,
+                    'image' => $user->image
+                ]
+            ])->setStatusCode(200);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                "message" => "An error occurred: " . $e->getMessage()
+            ])->setStatusCode(500);
         }
-        $status = $user -> save();
-        if(!$status){
-            return response()->json(
-                ["message"=>__("data failed to change")]
-            )->setStatusCode(400);
-        }
-        return response() -> json([
-            "message"=>__("data changed successfully")
-        ]) -> setStatusCode(200);
     }
 }

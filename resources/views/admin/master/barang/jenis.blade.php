@@ -8,12 +8,12 @@
             <div class="card w-100">
                 <div class="card-header row">
                     <div class="d-flex justify-content-end align-items-center w-100">
-                    @if(Auth::user()->role->name != 'staff')
+                    {{-- Tombol tambah data hanya untuk employee --}}
+                    @if(Auth::user()->role->name == 'employee')
                         <button class="btn btn-success" type="button"  data-toggle="modal" data-target="#TambahData" id="modal-button"><i class="fas fa-plus"></i> {{ __("add data") }}</button>
                     @endif
                     </div>
                 </div>
-
 
                 <!-- Modal -->
                 <div class="modal fade" id="TambahData" tabindex="-1" aria-labelledby="TambahDataModalLabel" aria-hidden="true">
@@ -38,8 +38,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-dismiss="modal" id="kembali">{{ __("back") }}</button>
-                            <button type="button" class="btn btn-success" id="simpan">{{ __("save
-                            ") }}</button>
+                            <button type="button" class="btn btn-success" id="simpan">{{ __("save") }}</button>
                         </div>
                         </div>
                     </div>
@@ -53,7 +52,8 @@
                                     <th class="border-bottom-0" width="8%">{{ __("no") }}</th>
                                     <th class="border-bottom-0">{{ __("name") }}</th>
                                     <th class="border-bottom-0">{{ __("description") }}</th>
-                                    @if(Auth::user()->role->name != 'staff')
+                                    {{-- Kolom action hanya untuk employee --}}
+                                    @if(Auth::user()->role->name == 'employee')
                                     <th class="border-bottom-0" width="1%">{{ __("action") }}</th>
                                     @endif
                                 </tr>
@@ -94,7 +94,8 @@
                         return data;
                     }
                 },
-                @if(Auth::user()->role->name != 'staff')
+                {{-- Kolom action hanya untuk employee --}}
+                @if(Auth::user()->role->name == 'employee')
                 {
                     data:'tindakan',
                     name:'tindakan'
@@ -111,7 +112,7 @@
                 icon: "warning",
                 title: "nama tidak boleh kosong !",
                 showConfirmButton: false,
-                imer: 1500
+                timer: 1500
             });
         }
             $.ajax({
@@ -137,11 +138,10 @@
                     $('#data-jenis').DataTable().ajax.reload();
                 },
                 error:function(err){
-                    console.log(err.responJson.text);
+                    console.log(err.responseJSON.message);
                 },
             });
     }
-
 
     function ubah(){
             $.ajax({
@@ -165,21 +165,19 @@
                     $("#name").val(null);
                     $("#desc").val(null);
                     $('#data-jenis').DataTable().ajax.reload();
-                    $('#simpan').text('Simpan');
+                    $('#simpan').text('{{ __("save") }}');
                 },
                 error:function(err){
-                    console.log(err.responJson.text);
+                    console.log(err.responseJSON.message);
                 },
-
             });
     }
-
 
     $(document).ready(function(){
         isi();
 
         $('#simpan').on('click',function(){
-            if($(this).text() === 'Simpan Perubahan'){
+            if($(this).text() === '{{ __("save changes") }}'){
                 ubah();
             }else{
                 simpan();
@@ -189,17 +187,14 @@
         $("#modal-button").on("click",function(){
             $("#name").val(null);
             $("#desc").val(null);
-            $("#simpan").text("Simpan");
+            $("#simpan").text("{{ __('save') }}");
         });
-
     });
-
-
 
     $(document).on("click",".ubah",function(){
         let id = $(this).attr('id');
         $("#modal-button").click();
-        $("#simpan").text("Simpan Perubahan");
+        $("#simpan").text("{{ __('save changes') }}");
         $.ajax({
             url:"{{route('barang.jenis.detail')}}",
             type:"post",
@@ -208,13 +203,11 @@
                 "_token":"{{csrf_token()}}"
             },
             success:function({data}){
-
                 $("#id").val(data.id);
                 $("#name").val(data.name);
                 $("#desc").val(data.description);
             }
         });
-
     });
 
     $(document).on("click",".hapus",function(){
@@ -256,11 +249,7 @@
                 });
             }
         });
-
     });
-
-
 </script>
 
 @endsection
-

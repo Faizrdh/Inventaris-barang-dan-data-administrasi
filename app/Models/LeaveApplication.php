@@ -5,89 +5,121 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
 class LeaveApplication extends Model
 {
-    use HasFactory;
-
-    // Menentukan nama tabel yang benar
-    protected $table = 'cutis';
+    use HasFactory, SoftDeletes;
     
-    // Menentukan koneksi database yang benar
-    protected $connection = 'db_inventaris';
-
-    // Fillable columns for mass-assignment, disesuaikan dengan kolom di tabel 'cutis'
+    protected $table = 'leave_applications';
+   
     protected $fillable = [
-        'kode',
-        'nama',
-        'nip',
-        'tanggal_pengajuan',
-        'tanggal_mulai',
-        'tanggal_selesai',
-        'total_hari',
-        'keterangan',
-        'status',
-        'file_izin', // Sesuaikan dengan nama di tabel cutis (bukan dokumen)
-        'approved_by',
-        'approved_at',
+        'code', 'name', 'employee_id', 'email', 'application_date', 'leave_type',
+        'start_date', 'end_date', 'total_days', 'description', 'status',
+        'document_path', 'user_id', 'approved_by', 'approved_at', 'catatan_validator'
     ];
-
-    // Convert column data types to appropriate formats
+    
     protected $casts = [
-        'tanggal_pengajuan' => 'date', // Sesuaikan dengan tipe di migrasi (date, bukan datetime)
-        'tanggal_mulai' => 'date',
-        'tanggal_selesai' => 'date',
+        'application_date' => 'date',
+        'start_date' => 'date',
+        'end_date' => 'date',
         'approved_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
-
-    /**
-     * Relation to User model for approved leave applications
-     */
+    
+    // Relationships
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+    
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
     }
-
-    /**
-     * Calculate total days based on start and end dates
-     */
-    public function hitungTotalHari()
+    
+    // Business Logic Methods
+    public function calculateTotalDays(): int
     {
-        if ($this->tanggal_mulai && $this->tanggal_selesai) {
-            $start = new \DateTime($this->tanggal_mulai);
-            $end = new \DateTime($this->tanggal_selesai);
-            $diff = $start->diff($end);
-            return $diff->days + 1; // Total days including first day
+        if ($this->start_date && $this->end_date) {
+            return $this->start_date->diffInDays($this->end_date) + 1;
         }
-
         return 0;
     }
-
-    /**
-     * Save document file when leave application is submitted
-     *
-     * @param \Illuminate\Http\UploadedFile|null $file
-     * @return string|null
-     */
-    public function saveDokumen($file)
+    
+    public function saveDocument($file): ?string
     {
-        if ($file) {
-            return $file->store('cuti_files', 'public'); // Store file in 'cuti_files' folder in public storage
+        return $file ? $file->store('leave_documents', 'public') : null;
+    }
+    
+    public function deleteDocument(): void
+    {
+        if ($this->document_path && Storage::disk('public')->exists($this->document_path)) {
+            Storage::disk('public')->delete($this->document_path);
         }
-
-        return null;
+    }
+    
+    public function canBeModified(): bool
+    {
+        return $this->status === 'pending';
+    }
+    
+    // Accessors untuk DataTables
+    public function getStatusLabelAttribute(): string
+    {
+        $labels = [
+            'pending' => '<span class="badge badge-warning"><i class="fas fa-clock"></i> Pending</span>',
+            'approved' => '<span class="badge badge-success"><i class="fas fa-check"></i> Approved</span>',
+            'rejected' => '<span class="badge badge-danger"><i class="fas fa-times"></i> Rejected</span>',
+            'processed' => '<span class="badge badge-info"><i class="fas fa-cog"></i> Processed</span>',
+        ];
+       
+        return $labels[$this->status] ?? '<span class="badge badge-secondary">Unknown</span>';
     }
 
-    /**
-     * Delete document file associated with leave application
-     *
-     * @return void
-     */
-    public function deleteDokumen()
+    public function getStatusBadgeAttribute(): string
     {
-        if ($this->file_izin && Storage::disk('public')->exists($this->file_izin)) {
-            Storage::disk('public')->delete($this->file_izin);
-        }
+        return $this->getStatusLabelAttribute();
+    }
+
+    // Accessor untuk format tanggal
+    public function getApplicationDateFormattedAttribute(): string
+    {
+        return $this->application_date ? $this->application_date->format('Y-m-d') : '-';
+    }
+
+    public function getStartDateFormattedAttribute(): string
+    {
+        return $this->start_date ? $this->start_date->format('Y-m-d') : '-';
+    }
+
+    public function getEndDateFormattedAttribute(): string
+    {
+        return $this->end_date ? $this->end_date->format('Y-m-d') : '-';
+    }
+
+    public function getApprovedAtFormattedAttribute(): string
+    {
+        return $this->approved_at ? $this->approved_at->format('Y-m-d H:i') : '-';
+    }
+
+    // Accessor untuk approver name
+    public function getApproverNameAttribute(): string
+    {
+        return $this->approver ? $this->approver->name : '-';
+    }
+
+    // Accessor untuk status text
+    public function getStatusTextAttribute(): string
+    {
+        $statusTexts = [
+            'pending' => 'Pending',
+            'approved' => 'Approved', 
+            'rejected' => 'Rejected',
+            'processed' => 'Processed'
+        ];
+
+        return $statusTexts[$this->status] ?? 'Unknown';
     }
 }

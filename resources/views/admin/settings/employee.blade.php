@@ -12,7 +12,6 @@
                     </div>
                 </div>
 
-
                 <!-- Modal -->
                 <div class="modal fade" id="TambahData" tabindex="-1" aria-labelledby="TambahDataModalLabel" aria-hidden="true">
                     <div class="modal-dialog">
@@ -26,21 +25,22 @@
                         <div class="modal-body">
                             <div class="form-group mb-3">
                                 <label for="name">{{ __("name") }}</label>
-                                <input type="text" class="form-control" id="name" autocomplete="off">
+                                <input type="text" class="form-control" id="name" autocomplete="off" required>
                                 <input type="hidden" name="id" id="id">
                             </div>
                             <div class="form-group mb-3">
-                                <label for="phone_number">{{ __("username") }}</label>
-                                <input type="text" class="form-control" id="username" autocomplete="off">
+                                <label for="username">{{ __("username") }}</label>
+                                <input type="text" class="form-control" id="username" autocomplete="off" required>
                             </div>
                             <div class="form-group mb-3">
                                 <label for="password">{{ __("password") }}</label>
-                                <input type="password" class="form-control" id="password"></textarea>
+                                <input type="password" class="form-control" id="password" required>
+                                <small class="form-text text-muted" id="password-help" style="display: none;">Kosongkan jika tidak ingin mengubah password</small>
                             </div>
                             <div class="form-group mb-3">
                                 <label for="role">{{ __("role") }}</label>
-                                <select class="form-control" id="role">
-                                    <option selected value="-- {{ __('role') }} --">-- {{ __("role") }} --</option>
+                                <select class="form-control" id="role" required>
+                                    <option value="">-- {{ __("role") }} --</option>
                                     @foreach($roles as $role)
                                         <option value="{{$role->id}}">{{$role->name}}</option>
                                     @endforeach
@@ -109,73 +109,154 @@
         }).buttons().container();
     }
 
-    function simpan(){
-            $.ajax({
-                url:`{{route('settings.employee.save')}}`,
-                type:"post",
-                data:{
-                    name:$("#name").val(),
-                    username:$("#username").val(),
-                    password:$("#password").val(),
-                    role_id:$("#role").val(),
-                    "_token":"{{csrf_token()}}"
-                },
-                success:function(res){
-                    Swal.fire({
-                        position: "center",
-                        icon: "success",
-                        title: res.message,
-                        showConfirmButton: false,
-                        timer: 1500
-                    });
-                    $('#kembali').click();
-                    $("#name").val(null);
-                    $("#username").val(null);
-                    $("#password").val(null);
-                    $("#role").val("-- {{__('role')}} --");
-                    $('#data-tabel').DataTable().ajax.reload();
-                },
-                error:function(err){
-                    console.log(err);
-                },
+    function validateForm() {
+        const name = $("#name").val().trim();
+        const username = $("#username").val().trim();
+        const password = $("#password").val().trim();
+        const role = $("#role").val();
+        const isUpdate = $("#simpan").text() === "{{__('update')}}";
 
+        if (!name) {
+            Swal.fire({
+                position: "center",
+                icon: "warning",
+                title: "Nama tidak boleh kosong!",
+                showConfirmButton: false,
+                timer: 1500
             });
+            return false;
+        }
+
+        if (!username) {
+            Swal.fire({
+                position: "center",
+                icon: "warning",
+                title: "Username tidak boleh kosong!",
+                showConfirmButton: false,
+                timer: 1500
+            });
+            return false;
+        }
+
+        if (!isUpdate && !password) {
+            Swal.fire({
+                position: "center",
+                icon: "warning",
+                title: "Password tidak boleh kosong!",
+                showConfirmButton: false,
+                timer: 1500
+            });
+            return false;
+        }
+
+        if (!role) {
+            Swal.fire({
+                position: "center",
+                icon: "warning",
+                title: "Role harus dipilih!",
+                showConfirmButton: false,
+                timer: 1500
+            });
+            return false;
+        }
+
+        return true;
     }
 
+    function clearForm() {
+        $("#id").val('');
+        $("#name").val('');
+        $("#username").val('');
+        $("#password").val('');
+        $("#role").val('');
+    }
+
+    function simpan(){
+        if (!validateForm()) return;
+
+        $.ajax({
+            url:`{{route('settings.employee.save')}}`,
+            type:"post",
+            data:{
+                name:$("#name").val(),
+                username:$("#username").val(),
+                password:$("#password").val(),
+                role_id:$("#role").val(),
+                "_token":"{{csrf_token()}}"
+            },
+            success:function(res){
+                Swal.fire({
+                    position: "center",
+                    icon: "success",
+                    title: res.message,
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+                $('#kembali').click();
+                clearForm();
+                $('#data-tabel').DataTable().ajax.reload();
+            },
+            error:function(err){
+                console.log(err);
+                let errorMessage = "Terjadi kesalahan!";
+                if (err.responseJSON && err.responseJSON.message) {
+                    errorMessage = err.responseJSON.message;
+                }
+                Swal.fire({
+                    position: "center",
+                    icon: "error",
+                    title: errorMessage,
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            },
+        });
+    }
 
     function ubah(){
-            $.ajax({
-                url:`{{route('settings.employee.update')}}`,
-                type:"put",
-                data:{
-                    id:$("#id").val(),
-                    name:$("#name").val(),
-                    username:$("#username").val(),
-                    password:$("#password").val(),
-                    role_id:$("#role").val("-- {{ __('role') }} --"),
-                    "_token":"{{csrf_token()}}"
-                },
-                success:function(res){
-                    Swal.fire({
-                        position: "center",
-                        icon: "success",
-                        title: res.message,
-                        showConfirmButton: false,
-                        timer: 1500
-                    });
-                    $('#kembali').click();
-                    $("#name").val(null);
-                    $("#username").val(null);
-                    $("#password").val(null);
-                    $("#role").val("-- {{ __('role') }} --");
-                    $('#data-tabel').DataTable().ajax.reload();
-                    $('#simpan').text("{{__('save')}}");
-                },
-                error:function(err){
-                    console.log(err.responJson.text);
-                },
+        if (!validateForm()) return;
 
-            });
+        $.ajax({
+            url:`{{route('settings.employee.update')}}`,
+            type:"put",
+            data:{
+                id:$("#id").val(),
+                name:$("#name").val(),
+                username:$("#username").val(),
+                password:$("#password").val(),
+                role_id:$("#role").val(),
+                "_token":"{{csrf_token()}}"
+            },
+            success:function(res){
+                Swal.fire({
+                    position: "center",
+                    icon: "success",
+                    title: res.message,
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+                $('#kembali').click();
+                clearForm();
+                $('#data-tabel').DataTable().ajax.reload();
+                $('#simpan').text("{{__('save')}}");
+                $('#password').attr('required', true);
+                $('#password-help').hide();
+            },
+            error:function(err){
+                console.log(err);
+                let errorMessage = "Terjadi kesalahan!";
+                if (err.responseJSON && err.responseJSON.message) {
+                    errorMessage = err.responseJSON.message;
+                }
+                Swal.fire({
+                    position: "center",
+                    icon: "error",
+                    title: errorMessage,
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            },
+        });
     }
 
     $(document).ready(function(){
@@ -190,24 +271,22 @@
         });
 
         $("#modal-button").on("click",function(){
-            $("#name").val(null);
-            $("#username").val(null);
-            $("#password").val(null);
-            $("#role").val("-- {{ __('role') }} --");
+            clearForm();
             $("#simpan").text("{{__('save')}}");
             $("#TambahDataModalLabel").text("{{__('add data')}}");
+            $('#password').attr('required', true);
+            $('#password-help').hide();
         });
-
-
     });
-
-
 
     $(document).on("click",".ubah",function(){
         let id = $(this).attr('id');
         $("#modal-button").click();
         $("#simpan").text("{{__('update')}}");
         $("#TambahDataModalLabel").text("Ubah Profile Staff");
+        $('#password').attr('required', false);
+        $('#password-help').show();
+        
         $.ajax({
             url:"{{route('settings.employee.detail')}}",
             type:"post",
@@ -215,14 +294,25 @@
                 id:id,
                 "_token":"{{csrf_token()}}"
             },
-            success:function({data}){
+            success:function(response){
+                const data = response.data;
                 $("#id").val(data.id);
                 $("#name").val(data.name);
                 $("#username").val(data.username);
                 $("#role").val(data.role_id);
+                $("#password").val(''); // Clear password field for edit
+            },
+            error:function(err){
+                console.log(err);
+                Swal.fire({
+                    position: "center",
+                    icon: "error",
+                    title: "Gagal mengambil data user!",
+                    showConfirmButton: false,
+                    timer: 1500
+                });
             }
         });
-
     });
 
     $(document).on("click",".hapus",function(){
@@ -260,12 +350,24 @@
                                 timer: 1500
                         });
                         $('#data-tabel').DataTable().ajax.reload();
+                    },
+                    error:function(err){
+                        console.log(err);
+                        let errorMessage = "Gagal menghapus data!";
+                        if (err.responseJSON && err.responseJSON.message) {
+                            errorMessage = err.responseJSON.message;
+                        }
+                        Swal.fire({
+                            position: "center",
+                            icon: "error",
+                            title: errorMessage,
+                            showConfirmButton: false,
+                            timer: 2000
+                        });
                     }
                 });
             }
         });
-
-
     });
 </script>
 @endsection

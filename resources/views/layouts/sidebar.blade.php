@@ -58,6 +58,32 @@
             </li>
           </ul>
         </li>
+
+        <li class="nav-item {{ request()->routeIs('letter.category.*') ? 'menu-open' : '' }}">
+        <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('letter.category.*') ? 'active' : '' }}">
+          <i class="nav-icon fas fa-envelope"></i>
+          <p>
+            {{ __("master of letters") }}
+            <i class="right fas fa-angle-left"></i>
+          </p>
+        </a>
+        <ul class="nav nav-treeview">
+          <li class="nav-item">
+            <a href="{{ route('letter.category.index') }}" class="nav-link text-white {{ request()->routeIs('letter.category.index') ? 'active' : '' }}">
+              <i class="fas fa-angle-right"></i>
+              <p>{{ __("Jenis Surat") }}</p>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ route('surat.index') }}" class="nav-link text-white {{ request()->routeIs('letter.index') ? 'active' : '' }}">
+              <i class="fas fa-angle-right"></i>
+              <p>{{ __("Satuan Surat") }}</p>
+            </a>
+          </li>
+        </ul>
+      </li>
+
+
         <li class="nav-item">
           <a href="{{route('customer')}}" class="nav-link text-white {{ request()->routeIs('customer') ? 'active' : '' }}">
             <i class="nav-icon far fa-user"></i>
@@ -67,11 +93,20 @@
           </a>
         </li>
 
+      <li class="nav-item">
+    <a href="{{route('sender_letter.index')}}" class="nav-link text-white {{ request()->routeIs('sender_letter.index') ? 'active' : '' }}">
+        <i class="nav-icon far fa-envelope"></i>
+        <p>
+            {{ __("Pengirim Surat") }}
+        </p>
+    </a>
+</li>
+
         <li class="nav-item">
           <a href="{{route('supplier')}}" class="nav-link text-white {{ request()->routeIs('supplier') ? 'active' : '' }}">
             <i class="nav-icon fas fa-shipping-fast"></i>
             <p>
-              {{ __("supplier") }}
+              {{ __("Distributor") }}
             </p>
           </a>
         </li>
@@ -79,83 +114,151 @@
           <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('transaksi.*') ? 'active' : '' }}">
             <i class="nav-icon fas fa-exchange-alt"></i>
             <p>
-            {{ __("transaction") }}
+            {{ __("Transaksi barang") }}
               <i class="right fas fa-angle-left"></i>
             </p>
           </a>
           <ul class="nav nav-treeview">
             <li class="nav-item">
-              <a href="{{route('transaksi.masuk')}}" class="nav-link text-white {{ request()->routeIs('transaksi.masuk') ? 'active' : '' }}">
+             <a href="{{route('transaksi.masuk.index')}}" class="nav-link text-white {{ request()->routeIs('transaksi.masuk*') ? 'active' : '' }}">
               <i class="fas fa-angle-right"></i>
-                <p>{{ __("incoming transaction") }}</p>
+                <p>{{ __("Barang Masuk") }}</p>
               </a>
             </li>
             <li class="nav-item">
               <a href="{{route('transaksi.keluar')}}" class="nav-link text-white {{ request()->routeIs('transaksi.keluar') ? 'active' : '' }}">
               <i class="fas fa-angle-right"></i>
-                <p>{{ __("outbound transaction") }}</p>
+                <p>{{ __("Barang Keluar") }}</p>
               </a>
             </li>
           </ul>
         </li>
-        
-        <!-- Menu Cuti Baru -->
-        <li class="nav-item {{ request()->routeIs('cuti.*') ? 'menu-open' : '' }}">
-          <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('cuti.*') ? 'active' : '' }}">
-            <i class="nav-icon fas fa-envelope"></i>
+
+
+        <li class="nav-item {{ request()->routeIs('transaksi.*') ? 'menu-open' : '' }}">
+          <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('transaksi.*') ? 'active' : '' }}">
+            <i class="nav-icon fas fa-exchange-alt"></i>
             <p>
+            {{ __("Transaksi Surat") }}
+              <i class="right fas fa-angle-left"></i>
+            </p>
+          </a>
+         <ul class="nav nav-treeview">
+          <li class="nav-item">
+              <a href="{{route('surat.masuk.index')}}" class="nav-link text-white {{ request()->routeIs('surat.masuk.*') ? 'active' : '' }}">
+                  <i class="fas fa-angle-right"></i>
+                  <p>{{ __("Surat Masuk") }}</p>
+              </a>
+          </li>
+          <li class="nav-item">
+              <a href="{{route('surat.keluar.index')}}" class="nav-link text-white {{ request()->routeIs('surat.keluar.index*') ? 'active' : '' }}">
+                  <i class="fas fa-angle-right"></i>
+                  <p>{{ __("Surat keluar") }}</p>
+              </a>
+          </li>
+      </ul>
+        </li>
+      
+       <li class="nav-item {{ request()->routeIs('leave-application.*') || request()->routeIs('leave-validation.*') ? 'menu-open' : '' }}">
+    <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('leave-application.*') || request()->routeIs('leave-validation.*') ? 'active' : '' }}">
+        <i class="nav-icon fas fa-calendar-alt"></i>
+        <p>
             {{ __("Cuti") }}
-              <i class="right fas fa-angle-left"></i>
-            </p>
-          </a>
-          <ul class="nav nav-treeview">
-            <!-- Menu Pengajuan Cuti -->
-            <li class="nav-item">
-                <a href="{{ route('leave-application') }}" class="nav-link text-white {{ request()->routeIs('leave-application') ? 'active' : '' }}">
-                    <i class="fas fa-angle-right"></i>
-                    <p>{{ __("Pengajuan Cuti") }}</p>
-                </a>
-            </li>
-        
-            <!-- Menu Validasi Cuti -->
-            <li class="nav-item">
-                <a href="{{ route('leave-validation') }}" class="nav-link text-white {{ request()->routeIs('leave-validation') ? 'active' : '' }}">
-                    <i class="fas fa-angle-right"></i>
-                    <p>{{ __("Validasi Pengajuan Cuti") }}</p>
-                </a>
-            </li>
-        </ul>
+            <i class="right fas fa-angle-left"></i>
+        </p>
+    </a>
+    <ul class="nav nav-treeview">
+        <!-- Menu Pengajuan Cuti-->
+        <li class="nav-item">
+            <a href="{{ route('leave-application.index') }}" class="nav-link text-white {{ request()->routeIs('leave-application.index') ? 'active' : '' }}">
+                <i class="fas fa-angle-right nav-icon"></i>
+                <p>{{ __("Pengajuan Cuti") }}</p>
+            </a>
         </li>
         
-        <li class="nav-item {{ request()->routeIs('laporan.*') ? 'menu-open' : '' }}">
-          <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('laporan.*') ? 'active' : '' }}">
-            <i class="nav-icon fas fa-print"></i>
+        <!-- Menu Validasi Cuti - Hanya Admin yang bisa akses -->
+        @if(Auth::check() && (Auth::user()->role->name == 'admin' || Auth::user()->role_id === 1))
+        <li class="nav-item">
+            <a href="{{ route('leave-validation.index') }}" class="nav-link text-white {{ request()->routeIs('leave-validation.*') ? 'active' : '' }}">
+                <i class="fas fa-angle-right nav-icon"></i>
+                <p>{{ __("Validasi Pengajuan Cuti") }}</p>
+            </a>
+        </li>
+        @endif
+    </ul>
+</li>
+
+        <li class="nav-item">
+          <a href="{{route('return.index')}}" class="nav-link text-white {{ request()->routeIs('return.*') ? 'active' : '' }}">
+            <i class="nav-icon fas fa-exchange-alt"></i>
             <p>
-            {{ __("report") }}
-              <i class="right fas fa-angle-left"></i>
+              {{ __("pengembalian") }}
             </p>
           </a>
-          <ul class="nav nav-treeview">
-            <li class="nav-item">
-              <a href="{{route('laporan.masuk')}}" class="nav-link text-white {{ request()->routeIs('laporan.masuk') ? 'active' : '' }}">
-              <i class="fas fa-angle-right"></i>
-                <p>{{ __("incoming goods report") }}</p>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a href="{{route('laporan.keluar')}}" class="nav-link text-white {{ request()->routeIs('laporan.keluar') ? 'active' : '' }}">
-              <i class="fas fa-angle-right"></i>
-                <p>{{ __("outgoing goods report") }}</p>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a href="{{route('laporan.stok')}}" class="nav-link text-white {{ request()->routeIs('laporan.stok') ? 'active' : '' }}">
-              <i class="fas fa-angle-right"></i>
-                <p>{{ __("stock report") }}</p>
-              </a>
-            </li>
-          </ul>
         </li>
+        
+        {{-- sidebar Laporan Barang admin only --}}
+@if(Auth::check() && (Auth::user()->role->name == 'admin' || Auth::user()->role_id === 1))
+<li class="nav-item {{ request()->routeIs('laporan.masuk*') || request()->routeIs('laporan.keluar*') || request()->routeIs('laporan.stok*') ? 'menu-open' : '' }}">
+  <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('laporan.masuk*') || request()->routeIs('laporan.keluar*') || request()->routeIs('laporan.stok*') ? 'active' : '' }}">
+    <i class="nav-icon fas fa-print"></i>
+    <p>
+    {{ __("report") }}
+      <i class="right fas fa-angle-left"></i>
+    </p>
+  </a>
+  <ul class="nav nav-treeview">
+    <li class="nav-item">
+      <a href="{{route('laporan.masuk')}}" class="nav-link text-white {{ request()->routeIs('laporan.masuk*') ? 'active' : '' }}">
+      <i class="fas fa-angle-right"></i>
+        <p>{{ __("incoming goods report") }}</p>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="{{route('laporan.keluar')}}" class="nav-link text-white {{ request()->routeIs('laporan.keluar*') ? 'active' : '' }}">
+      <i class="fas fa-angle-right"></i>
+        <p>{{ __("outgoing goods report") }}</p>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="{{route('laporan.stok')}}" class="nav-link text-white {{ request()->routeIs('laporan.stok*') ? 'active' : '' }}">
+      <i class="fas fa-angle-right"></i>
+        <p>{{ __("stock report") }}</p>
+      </a>
+    </li>
+  </ul>
+</li>
+@endif
+@if(Auth::check() && (Auth::user()->role->name == 'admin' || Auth::user()->role_id === 1))
+<li class="nav-item {{ request()->routeIs('laporan.surat-*') ? 'menu-open' : '' }}">
+    <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('laporan.surat-*') ? 'active' : '' }}">
+        <i class="nav-icon fas fa-print"></i>
+        <p>
+            {{ __("Laporan surat") }}
+            <i class="right fas fa-angle-left"></i>
+        </p>
+    </a>
+    <ul class="nav nav-treeview">
+        <!-- Laporan Surat Masuk -->
+        <li class="nav-item">
+            <a href="{{route('laporan.surat-masuk')}}" class="nav-link text-white {{ request()->routeIs('laporan.surat-masuk*') ? 'active' : '' }}">
+                <i class="fas fa-angle-right"></i>
+                <p>{{ __("Laporan Surat Masuk") }}</p>
+            </a>
+        </li>
+        
+        <!-- Laporan Surat Keluar -->
+        <li class="nav-item">
+            <a href="{{route('laporan.surat-keluar')}}" class="nav-link text-white {{ request()->routeIs('laporan.surat-keluar*') ? 'active' : '' }}">
+                <i class="fas fa-angle-right"></i>
+                <p>{{ __("Laporan Surat Keluar") }}</p>
+            </a>
+        </li>
+    </ul>
+</li>
+@endif
+        
+
         <li class="nav-header">{{ __("others") }}</li>
         <li class="nav-item {{ request()->routeIs('settings.*') ? 'menu-open' : '' }}">
           <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('settings.*') ? 'active' : '' }}">
