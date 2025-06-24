@@ -30,8 +30,8 @@ class EmployeeController extends Controller
             $staff = User::with('role')->whereHas('role', function(Builder $builder){
                 $builder = $builder->where('name', 'employee');
                 if(Auth::user()->role->name != 'admin'){
-                    $builder->orWhere('name', 'admin')
-                           ->orWhere('name', 'super_admin');
+                    $builder->orWhere('name', 'admin');
+                
                 }
             })->latest()->get();
             

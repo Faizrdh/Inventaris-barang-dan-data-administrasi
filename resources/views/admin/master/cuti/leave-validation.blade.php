@@ -80,16 +80,16 @@
                                 <tr>
                                     <th class="border-bottom-0" width="3%">{{__("No")}}</th>
                                     <th class="border-bottom-0">{{__("Code")}}</th>
-                                    <th class="border-bottom-0">{{__("Employee Name")}}</th>
-                                    <th class="border-bottom-0">{{__("Employee ID")}}</th>
-                                    <th class="border-bottom-0">{{__("Leave Type")}}</th>
-                                    <th class="border-bottom-0">{{__("Application Date")}}</th>
-                                    <th class="border-bottom-0">{{__("Start Date")}}</th>
-                                    <th class="border-bottom-0">{{__("End Date")}}</th>
-                                    <th class="border-bottom-0">{{__("Total Days")}}</th>
+                                    <th class="border-bottom-0">{{__("Nama pegawai")}}</th>
+                                    <th class="border-bottom-0">{{__("NIP pegawai")}}</th>
+                                    <th class="border-bottom-0">{{__("Jenis izin")}}</th>
+                                    <th class="border-bottom-0">{{__("tanggal pengajuan")}}</th>
+                                    <th class="border-bottom-0">{{__("tanggal mulai")}}</th>
+                                    <th class="border-bottom-0">{{__("tanggal selesai")}}</th>
+                                    <th class="border-bottom-0">{{__("total hasi")}}</th>
                                     <th class="border-bottom-0" width="12%">{{__("Status")}}</th>
-                                    <th class="border-bottom-0">{{__("Approved By")}}</th>
-                                    <th class="border-bottom-0">{{__("Approved At")}}</th>
+                                    <th class="border-bottom-0">{{__("disetujui oleh")}}</th>
+                                    <th class="border-bottom-0">{{__("tanggal disetujui")}}</th>
                                     <th class="border-bottom-0" width="12%">{{__("Actions")}}</th>
                                 </tr>
                             </thead>

@@ -280,8 +280,8 @@
               <td>{{ $application->name }}</td> 
               <td>{{ $application->employee_id }}</td>
               <td>{{ $application->leave_type }}</td>
-              <td>{{ $application->start_date ? $application->start_date->format('Y-m-d') : '-' }}</td> {{-- PERBAIKAN: Handle null date --}}
-              <td>{{ $application->end_date ? $application->end_date->format('Y-m-d') : '-' }}</td> {{-- PERBAIKAN: Handle null date --}}
+              <td>{{ $application->start_date ? $application->start_date->format('Y-m-d') : '-' }}</td> 
+              <td>{{ $application->end_date ? $application->end_date->format('Y-m-d') : '-' }}</td> 
               <td class="text-center">
                 @if($application->status == 'approved')
                 <span class="status-approved">Disetujui</span>
@@ -294,60 +294,6 @@
             </tr>
             @empty
             {{-- PERBAIKAN: Gunakan @empty untuk fallback data --}}
-            <tr>
-              <td>1</td>
-              <td>Siti Nur</td>
-              <td>1231241</td>
-              <td>Cuti</td>
-              <td>2025-02-06</td>
-              <td>2025-02-08</td>
-              <td class="text-center"><span class="status-approved">Disetujui</span></td>
-            </tr>
-            <tr>
-              <td>2</td>
-              <td>Maulida R</td>
-              <td>1231313</td>
-              <td>Cuti Melahirkan</td>
-              <td>2025-02-03</td>
-              <td>2025-02-04</td>
-              <td class="text-center"><span class="status-pending">Pending</span></td>
-            </tr>
-            <tr>
-              <td>3</td>
-              <td>Lionel Messi</td>
-              <td>1312131</td>
-              <td>Izin</td>
-              <td>2025-01-01</td>
-              <td>2025-01-05</td>
-              <td class="text-center"><span class="status-pending">Pending</span></td>
-            </tr>
-            <tr>
-              <td>4</td>
-              <td>Arhan P</td>
-              <td>12314112</td>
-              <td>Cuti Tahunan Sakit</td>
-              <td>2024-12-02</td>
-              <td>2024-12-07</td>
-              <td class="text-center"><span class="status-approved">Disetujui</span></td>
-            </tr>
-            <tr>
-              <td>5</td>
-              <td>Jay Idzes</td>
-              <td>13212314</td>
-              <td>Sakit</td>
-              <td>2024-08-12</td>
-              <td>2024-08-14</td>
-              <td class="text-center"><span class="status-rejected">Ditolak</span></td>
-            </tr>
-            <tr>
-              <td>6</td>
-              <td>Bellingham</td>
-              <td>123123412</td>
-              <td>Cuti</td>
-              <td>2024-08-10</td>
-              <td>2024-08-12</td>
-              <td class="text-center"><span class="status-approved">Disetujui</span></td>
-            </tr>
             @endforelse
           </tbody>
         </table>

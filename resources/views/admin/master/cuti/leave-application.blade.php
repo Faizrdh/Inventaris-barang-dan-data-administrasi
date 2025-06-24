@@ -114,7 +114,6 @@
                                     <th class="border-bottom-0">{{__("Tanggal Selesai")}}</th>
                                     <th class="border-bottom-0">{{__("Total Hari")}}</th>
                                     <th class="border-bottom-0">{{__("Status")}}</th>
-                                    {{-- Kolom action hanya untuk employee --}}
                                     @if(Auth::user()->role->name == 'employee')
                                         <th class="border-bottom-0" width="1%">{{__("Actions")}}</th>
                                     @endif

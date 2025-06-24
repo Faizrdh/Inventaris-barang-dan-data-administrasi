@@ -1,6 +1,8 @@
 @extends('layouts.app')
 @section('title',__("laporan surat keluar"))
 @section('content')
+
+{{-- Semua user dapat mengakses halaman ini --}}
 <x-head-datatable/>
 <div class="container-fluid">
     <div class="row">
@@ -30,15 +32,18 @@
                             </div>
                         </div>
                         <div class="col-lg-6 w-100 d-flex justify-content-end align-items-center">
-                            <button class="btn btn-outline-primary font-weight-bold m-1" id="print">
-                                <i class="fas fa-print m-1"></i>{{__("print")}}
-                            </button>
-                            <button class="btn btn-outline-danger font-weight-bold m-1" id="export-pdf">
-                                <i class="fas fa-file-pdf m-1"></i>{{ __("messages.export-to", ["file" => "pdf"]) }}
-                            </button>
-                            <button class="btn btn-outline-success font-weight-bold m-1" id="export-excel">
-                                <i class="fas fa-file-excel m-1"></i>{{ __("messages.export-to", ["file" => "excel"]) }}
-                            </button>
+                            {{-- Button export hanya untuk admin --}}
+                            @if(Auth::user()->role->name == 'admin' || Auth::user()->role_id === 1)
+                                <button class="btn btn-outline-primary font-weight-bold m-1" id="print">
+                                    <i class="fas fa-print m-1"></i>{{__("print")}}
+                                </button>
+                                <button class="btn btn-outline-danger font-weight-bold m-1" id="export-pdf">
+                                    <i class="fas fa-file-pdf m-1"></i>{{ __("messages.export-to", ["file" => "pdf"]) }}
+                                </button>
+                                <button class="btn btn-outline-success font-weight-bold m-1" id="export-excel">
+                                    <i class="fas fa-file-excel m-1"></i>{{ __("messages.export-to", ["file" => "excel"]) }}
+                                </button>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -85,6 +90,16 @@
                 data: function(d) {
                     d.start_date = $("input[name='start_date']").val();
                     d.end_date = $("input[name='end_date']").val();
+                },
+                error: function(xhr, error, thrown) {
+                    console.error('DataTables error:', error, thrown);
+                    
+                    if (xhr.status === 403) {
+                        alert('Akses tidak diizinkan. Anda akan diarahkan ke halaman utama.');
+                        window.location.href = '/';
+                    } else {
+                        alert('Terjadi kesalahan saat memuat data. Silakan refresh halaman.');
+                    }
                 }
             },
             columns: [
@@ -121,13 +136,21 @@
                 },
                 {
                     data: "file_status",
-                    name: "file_status"
+                    name: "file_status",
+                    render: function(data, type, row) {
+                        if (data === 'Ada File') {
+                            return '<span class="badge badge-success"><i class="fas fa-file mr-1"></i>' + data + '</span>';
+                        } else {
+                            return '<span class="badge badge-secondary"><i class="fas fa-file-o mr-1"></i>' + data + '</span>';
+                        }
+                    }
                 },
                 {
                     data: "sent_by",
                     name: "sent_by"
                 }
             ],
+            @if(Auth::user()->role->name == 'admin' || Auth::user()->role_id === 1)
             buttons: [
                 {
                     extend: 'excel',
@@ -200,7 +223,10 @@
                     }
                 }
             ],
-            dom: 'lBfrtip', // This includes the buttons in the DOM
+            dom: 'lBfrtip', // This includes the buttons in the DOM for admin
+            @else
+            dom: 'lfrtip', // No buttons for non-admin users
+            @endif
             language: {
                 processing: "Memproses...",
                 search: "Cari:",
@@ -220,21 +246,26 @@
             }
         });
 
+        // Event handler untuk filter - tersedia untuk semua user
         $("#filter").on('click', function() {
             tabel.draw();
         });
 
-        $("#print").on('click', function() {
-            tabel.button(".buttons-print").trigger();
-        });
+        {{-- Event handler untuk button export hanya jika admin --}}
+        @if(Auth::user()->role->name == 'admin' || Auth::user()->role_id === 1)
+            $("#print").on('click', function() {
+                tabel.button(".buttons-print").trigger();
+            });
 
-        $("#export-pdf").on('click', function() {
-            tabel.button(".buttons-pdf").trigger();
-        });
+            $("#export-pdf").on('click', function() {
+                tabel.button(".buttons-pdf").trigger();
+            });
 
-        $("#export-excel").on('click', function() {
-            tabel.button(".buttons-excel").trigger();
-        });
+            $("#export-excel").on('click', function() {
+                tabel.button(".buttons-excel").trigger();
+            });
+        @endif
     });
 </script>
+
 @endsection

@@ -135,7 +135,7 @@ class LeaveValidationController extends Controller
                 ], 400);
             }
 
-            // Kirim email notifikasi ke pegawai dengan validasi yang lebih baik
+            // Kirim email notifikasi ke pegawai 
             $this->sendStatusUpdateEmail($leaveApplication, $oldStatus);
 
             return response()->json([

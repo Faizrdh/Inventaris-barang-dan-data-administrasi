@@ -67,7 +67,6 @@ class TransactionInController extends Controller
                 ->make(true);
         }
         
-        // Tambahkan return statement untuk kondisi non-ajax
         return response()->json([
             'status' => 'error',
             'message' => 'Request harus menggunakan AJAX'

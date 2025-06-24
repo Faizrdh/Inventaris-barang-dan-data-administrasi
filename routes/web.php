@@ -262,22 +262,32 @@ Route::controller(TransactionOutController::class)->prefix('/transaksi/keluar')-
         Route::get('/list','list')->name('laporan.keluar.list');
     });
 
-    // Stock Report Routes
-    Route::controller(ReportStockController::class)->prefix('laporan/stok')->group(function(){
-        Route::get('/', 'index')->name('laporan.stok');
-        Route::get('/list', 'list')->name('laporan.stok.list');
-        Route::get('/grafik', 'grafik')->name('laporan.stok.grafik');
-    });
+    // Stock Report Routes - Complete Version
+Route::controller(ReportStockController::class)->prefix('laporan/stok')->group(function(){
+    Route::get('/', 'index')->name('laporan.stok');
+    Route::get('/list', 'list')->name('laporan.stok.list');
+    Route::get('/grafik', 'grafik')->name('laporan.stok.grafik');
+    
+    // Additional routes for stock management features
+    Route::get('/movements', 'getMovements')->name('laporan.stok.movements');
+    Route::post('/refresh', 'refreshStock')->name('laporan.stok.refresh');
+    Route::post('/recalculate', 'recalculateAllStock')->name('laporan.stok.recalculate');
+    Route::get('/summary', 'getSummary')->name('laporan.stok.summary');
+    Route::post('/export', 'export')->name('laporan.stok.export');
+});
 
-    // Alternative stock report routes untuk backward compatibility
-    Route::prefix('admin/master')->group(function () {
-        Route::get('/laporan/stok', [ReportStockController::class, 'index'])->name('admin.master.laporan.stok');
-        Route::get('/laporan/stok/list', [ReportStockController::class, 'list'])->name('admin.master.laporan.stok.list');
-        Route::get('/laporan/stok/grafik', [ReportStockController::class, 'grafik'])->name('admin.master.laporan.stok.grafik');
-    });
+// Alternative stock report routes untuk backward compatibility
+Route::prefix('admin/master')->group(function () {
+    Route::get('/laporan/stok', [ReportStockController::class, 'index'])->name('admin.master.laporan.stok');
+    Route::get('/laporan/stok/list', [ReportStockController::class, 'list'])->name('admin.master.laporan.stok.list');
+    Route::get('/laporan/stok/grafik', [ReportStockController::class, 'grafik'])->name('admin.master.laporan.stok.grafik');
+    Route::get('/laporan/stok/movements', [ReportStockController::class, 'getMovements'])->name('admin.master.laporan.stok.movements');
+    Route::post('/laporan/stok/refresh', [ReportStockController::class, 'refreshStock'])->name('admin.master.laporan.stok.refresh');
+    Route::post('/laporan/stok/recalculate', [ReportStockController::class, 'recalculateAllStock'])->name('admin.master.laporan.stok.recalculate');
+    Route::get('/laporan/stok/summary', [ReportStockController::class, 'getSummary'])->name('admin.master.laporan.stok.summary');
+    Route::post('/laporan/stok/export', [ReportStockController::class, 'export'])->name('admin.master.laporan.stok.export');
+});
 
-    // laporan penghasilan
-    Route::get('/report/income',[ReportFinancialController::class,'income'])->name('laporan.pendapatan');
 
     // pengaturan pengguna
     Route::middleware(['employee.middleware'])->group(function(){
