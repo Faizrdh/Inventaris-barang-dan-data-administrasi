@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Session;
 class NotificationController extends Controller
 {
     /**
-     * Get all notifications - FIXED VERSION with better validation
+     * Get all notifications - MODIFIED VERSION for all roles
      */
     public function getNotifications(): JsonResponse
     {
@@ -33,15 +33,11 @@ class NotificationController extends Controller
             // PERTAMA: Bersihkan notifikasi yang tidak valid
             $this->cleanupInvalidNotifications();
 
-            // 1. CEK STOK HABIS & RENDAH (untuk admin) - IMPROVED
-            if ($this->isAdmin()) {
-                $notifications = array_merge($notifications, $this->getStockNotifications());
-            }
+            // 1. CEK STOK HABIS & RENDAH (untuk SEMUA USER) - MODIFIED
+            $notifications = array_merge($notifications, $this->getStockNotifications());
 
-            // 2. CEK PENGAJUAN CUTI BARU (untuk admin) - IMPROVED
-            if ($this->isAdmin()) {
-                $notifications = array_merge($notifications, $this->getLeaveValidationNotifications());
-            }
+            // 2. CEK PENGAJUAN CUTI BARU (untuk SEMUA USER) - MODIFIED
+            $notifications = array_merge($notifications, $this->getLeaveValidationNotifications());
 
             // 3. CEK STATUS CUTI USER (untuk user yang login)
             $notifications = array_merge($notifications, $this->getUserLeaveNotifications($userId));
@@ -94,27 +90,29 @@ class NotificationController extends Controller
     }
 
     /**
-     * IMPROVED: Get stock notifications with STRICT validation
+     * MODIFIED: Get stock notifications - NOW AVAILABLE FOR ALL ROLES
      */
     private function getStockNotifications(): array
     {
         $notifications = [];
 
         try {
+            // Get user role for context
+            $isAdmin = $this->isAdmin();
+            
             // STRICT VALIDATION: Hanya ambil item yang benar-benar valid
             $outOfStockItems = DB::table('items')
                 ->where('quantity', '<=', 0)
                 ->where('active', 'true')
                 ->whereNotNull('name')
                 ->where('name', '!=', '')
-                ->where('name', 'NOT LIKE', '%deleted%') // Exclude marked as deleted
-                ->whereNull('deleted_at') // If using soft deletes
+                ->where('name', 'NOT LIKE', '%deleted%')
+                ->whereNull('deleted_at')
                 ->orderBy('updated_at', 'desc')
                 ->limit(5)
                 ->get();
 
             foreach ($outOfStockItems as $item) {
-                // DOUBLE CHECK: Pastikan item masih ada dan valid
                 $itemExists = DB::table('items')
                     ->where('id', $item->id)
                     ->where('active', 'true')
@@ -123,11 +121,16 @@ class NotificationController extends Controller
                     ->exists();
                 
                 if ($itemExists && !empty(trim($item->name))) {
+                    // Different message for admin vs employee
+                    $message = $isAdmin 
+                        ? "Item '{$item->name}' sudah habis - segera restock!"
+                        : "Item '{$item->name}' sudah habis - informasikan ke admin";
+                    
                     $notifications[] = [
                         'id' => 'out_of_stock_' . $item->id,
                         'type' => 'out_of_stock',
                         'title' => 'Stok Habis!',
-                        'message' => "Item '{$item->name}' sudah habis",
+                        'message' => $message,
                         'icon' => 'fas fa-times-circle text-danger',
                         'priority' => 'urgent',
                         'time' => 'Urgent',
@@ -136,16 +139,14 @@ class NotificationController extends Controller
                         'data' => [
                             'item_id' => $item->id, 
                             'item_name' => $item->name,
-                            'redirect_type' => 'stock_report'
+                            'redirect_type' => 'stock_report',
+                            'user_role' => $isAdmin ? 'admin' : 'employee'
                         ]
                     ];
-                } else {
-                    // Log jika ada item yang tidak valid
-                    Log::warning("Invalid item found in out of stock: ID {$item->id}, Name: '{$item->name}'");
                 }
             }
 
-            // STRICT VALIDATION untuk low stock
+            // Low stock notifications
             $lowStockItems = DB::table('items')
                 ->where('quantity', '>', 0)
                 ->where('quantity', '<=', 3)
@@ -159,7 +160,6 @@ class NotificationController extends Controller
                 ->get();
 
             foreach ($lowStockItems as $item) {
-                // DOUBLE CHECK untuk low stock
                 $itemExists = DB::table('items')
                     ->where('id', $item->id)
                     ->where('active', 'true')
@@ -168,11 +168,16 @@ class NotificationController extends Controller
                     ->exists();
                 
                 if ($itemExists && !empty(trim($item->name))) {
+                    // Different message for admin vs employee
+                    $message = $isAdmin
+                        ? "Item '{$item->name}' tersisa {$item->quantity} unit - perlu restock"
+                        : "Item '{$item->name}' tersisa {$item->quantity} unit - informasikan ke admin";
+                    
                     $notifications[] = [
                         'id' => 'low_stock_' . $item->id,
                         'type' => 'low_stock',
                         'title' => 'Stok Rendah',
-                        'message' => "Item '{$item->name}' tersisa {$item->quantity} unit",
+                        'message' => $message,
                         'icon' => 'fas fa-exclamation-triangle text-warning',
                         'priority' => 'high',
                         'time' => 'Sekarang',
@@ -182,7 +187,8 @@ class NotificationController extends Controller
                             'item_id' => $item->id, 
                             'item_name' => $item->name, 
                             'quantity' => $item->quantity,
-                            'redirect_type' => 'stock_report'
+                            'redirect_type' => 'stock_report',
+                            'user_role' => $isAdmin ? 'admin' : 'employee'
                         ]
                     ];
                 }
@@ -196,24 +202,25 @@ class NotificationController extends Controller
     }
 
     /**
-     * IMPROVED: Get leave validation notifications with better validation
+     * MODIFIED: Get leave validation notifications - NOW AVAILABLE FOR ALL ROLES
      */
     private function getLeaveValidationNotifications(): array
     {
         $notifications = [];
 
         try {
+            $isAdmin = $this->isAdmin();
+            
             $pendingLeaves = DB::table('leave_applications')
                 ->where('status', 'pending')
                 ->whereNotNull('name')
                 ->where('name', '!=', '')
-                ->whereNull('deleted_at') // If using soft deletes
+                ->whereNull('deleted_at')
                 ->orderBy('application_date', 'asc')
                 ->limit(10)
                 ->get();
 
             foreach ($pendingLeaves as $leave) {
-                // Validasi leave application masih valid
                 $leaveExists = DB::table('leave_applications')
                     ->where('id', $leave->id)
                     ->where('status', 'pending')
@@ -223,21 +230,35 @@ class NotificationController extends Controller
                     $daysSinceApplication = Carbon::parse($leave->application_date)->diffInDays(now());
                     $isUrgent = $daysSinceApplication >= 3;
 
+                    // Different message and action for admin vs employee
+                    if ($isAdmin) {
+                        $title = 'Pengajuan Cuti Pending';
+                        $message = "Cuti {$leave->leave_type} dari {$leave->name}" . ($isUrgent ? " (sudah {$daysSinceApplication} hari)" : '');
+                        $url = '/leave-validation?highlight=' . $leave->id;
+                        $redirectType = 'leave_validation';
+                    } else {
+                        $title = 'Info: Cuti Pending di Sistem';
+                        $message = "Ada pengajuan cuti {$leave->leave_type} yang pending" . ($isUrgent ? " (sudah {$daysSinceApplication} hari)" : '');
+                        $url = '/leave-application'; // Employee can only view their own
+                        $redirectType = 'leave_application';
+                    }
+
                     $notifications[] = [
                         'id' => 'pending_leave_' . $leave->id,
                         'type' => 'pending_leave',
-                        'title' => 'Pengajuan Cuti Pending',
-                        'message' => "Cuti {$leave->leave_type} dari {$leave->name}" . ($isUrgent ? " (sudah {$daysSinceApplication} hari)" : ''),
+                        'title' => $title,
+                        'message' => $message,
                         'icon' => $isUrgent ? 'fas fa-calendar-times text-danger' : 'fas fa-calendar-check text-warning',
                         'priority' => $isUrgent ? 'urgent' : 'high',
                         'time' => $isUrgent ? 'Urgent!' : Carbon::parse($leave->application_date)->diffForHumans(),
-                        'url' => '/leave-validation?highlight=' . $leave->id,
+                        'url' => $url,
                         'created_at' => $leave->application_date,
                         'data' => [
                             'leave_id' => $leave->id, 
-                            'applicant_name' => $leave->name, 
+                            'applicant_name' => $isAdmin ? $leave->name : 'Someone', // Hide name for non-admin
                             'days_pending' => $daysSinceApplication,
-                            'redirect_type' => 'leave_validation'
+                            'redirect_type' => $redirectType,
+                            'user_role' => $isAdmin ? 'admin' : 'employee'
                         ]
                     ];
                 }
@@ -250,11 +271,10 @@ class NotificationController extends Controller
         return $notifications;
     }
 
-    /**
-     * Get user's leave notifications (status updates) - UNCHANGED
-     */
+    // Keep other methods unchanged...
     private function getUserLeaveNotifications($userId): array
     {
+        // ... same as original
         $notifications = [];
 
         try {
@@ -322,8 +342,121 @@ class NotificationController extends Controller
     }
 
     /**
-     * NEW: Method untuk membersihkan notifikasi yang tidak valid secara otomatis
+     * MODIFIED: Summary now available for all roles with different data
      */
+    public function getSummary(): JsonResponse
+    {
+        try {
+            $summary = [];
+            $isAdmin = $this->isAdmin();
+
+            // Stock summary - NOW AVAILABLE FOR ALL ROLES
+            $stockSummary = DB::table('items')
+                ->selectRaw('
+                    COUNT(*) as total_items,
+                    SUM(CASE WHEN quantity <= 0 THEN 1 ELSE 0 END) as out_of_stock,
+                    SUM(CASE WHEN quantity > 0 AND quantity <= 3 THEN 1 ELSE 0 END) as low_stock,
+                    SUM(CASE WHEN quantity > 3 THEN 1 ELSE 0 END) as normal_stock
+                ')
+                ->where('active', 'true')
+                ->whereNotNull('name')
+                ->where('name', '!=', '')
+                ->where('name', 'NOT LIKE', '%deleted%')
+                ->whereNull('deleted_at')
+                ->first();
+
+            $summary['stock'] = [
+                'total_items' => $stockSummary->total_items ?? 0,
+                'out_of_stock' => $stockSummary->out_of_stock ?? 0,
+                'low_stock' => $stockSummary->low_stock ?? 0,
+                'normal_stock' => $stockSummary->normal_stock ?? 0
+            ];
+
+            // Leave summary - different data based on role
+            if ($isAdmin) {
+                // Admin sees all leave applications
+                $leaveSummary = DB::table('leave_applications')
+                    ->selectRaw('
+                        COUNT(*) as total_applications,
+                        SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_count,
+                        SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as approved_count,
+                        SUM(CASE WHEN status = "rejected" THEN 1 ELSE 0 END) as rejected_count
+                    ')
+                    ->whereNull('deleted_at')
+                    ->first();
+
+                $summary['leave_admin'] = [
+                    'total_applications' => $leaveSummary->total_applications ?? 0,
+                    'pending_count' => $leaveSummary->pending_count ?? 0,
+                    'approved_count' => $leaveSummary->approved_count ?? 0,
+                    'rejected_count' => $leaveSummary->rejected_count ?? 0
+                ];
+            } else {
+                // Employee sees general statistics (anonymized)
+                $generalLeaveSummary = DB::table('leave_applications')
+                    ->selectRaw('
+                        SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_count
+                    ')
+                    ->whereNull('deleted_at')
+                    ->first();
+
+                $summary['leave_general'] = [
+                    'pending_count' => $generalLeaveSummary->pending_count ?? 0
+                ];
+            }
+
+            // User's personal leave summary (for all roles)
+            $userId = Auth::id();
+            if ($userId) {
+                $userLeaveSummary = DB::table('leave_applications')
+                    ->where('user_id', $userId)
+                    ->whereNull('deleted_at')
+                    ->selectRaw('
+                        COUNT(*) as total_applications,
+                        SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_count,
+                        SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as approved_count,
+                        SUM(CASE WHEN status = "rejected" THEN 1 ELSE 0 END) as rejected_count
+                    ')
+                    ->first();
+
+                $summary['leave_user'] = [
+                    'total_applications' => $userLeaveSummary->total_applications ?? 0,
+                    'pending_count' => $userLeaveSummary->pending_count ?? 0,
+                    'approved_count' => $userLeaveSummary->approved_count ?? 0,
+                    'rejected_count' => $userLeaveSummary->rejected_count ?? 0
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'summary' => $summary,
+                'user_role' => $isAdmin ? 'admin' : 'employee'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error getting summary: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to get summary'
+            ], 500);
+        }
+    }
+
+    /**
+     * MODIFIED: Test method now accessible to all authenticated users
+     */
+    public function test(): JsonResponse
+    {
+        // Remove admin check - now accessible to all authenticated users
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        return $this->getNotifications();
+    }
+
+    // Keep all other methods unchanged...
     private function cleanupInvalidNotifications(): void
     {
         try {
@@ -333,7 +466,6 @@ class NotificationController extends Controller
             foreach ($readNotifications as $notifId) {
                 $isValid = true;
                 
-                // Check stock notifications
                 if (strpos($notifId, 'out_of_stock_') === 0 || strpos($notifId, 'low_stock_') === 0) {
                     $itemId = str_replace(['out_of_stock_', 'low_stock_'], '', $notifId);
                     $isValid = DB::table('items')
@@ -343,16 +475,12 @@ class NotificationController extends Controller
                         ->where('name', '!=', '')
                         ->exists();
                 }
-                
-                // Check leave notifications
                 elseif (strpos($notifId, 'pending_leave_') === 0) {
                     $leaveId = str_replace('pending_leave_', '', $notifId);
                     $isValid = DB::table('leave_applications')
                         ->where('id', $leaveId)
                         ->exists();
                 }
-                
-                // Check leave status notifications
                 elseif (strpos($notifId, 'leave_status_') === 0) {
                     $leaveId = str_replace('leave_status_', '', $notifId);
                     $isValid = DB::table('leave_applications')
@@ -367,7 +495,6 @@ class NotificationController extends Controller
                 }
             }
             
-            // Update session dengan notifikasi yang valid saja
             Session::put('read_notifications', $validNotifications);
             
         } catch (\Exception $e) {
@@ -375,9 +502,6 @@ class NotificationController extends Controller
         }
     }
 
-    /**
-     * IMPROVED: Method untuk membersihkan notifikasi item yang sudah dihapus
-     */
     public function cleanupDeletedItems(): JsonResponse
     {
         try {
@@ -397,7 +521,6 @@ class NotificationController extends Controller
         }
     }
 
-    // Semua method lainnya tetap sama...
     public function markAsRead(Request $request): JsonResponse
     {
         try {
@@ -407,7 +530,6 @@ class NotificationController extends Controller
             $readNotifications = Session::get('read_notifications', []);
 
             if ($markAll) {
-                // Get all current notification IDs and mark them as read
                 $allNotifications = $this->getNotifications();
                 $allIds = [];
                 
@@ -424,7 +546,6 @@ class NotificationController extends Controller
                     'message' => 'All notifications marked as read'
                 ]);
             } else {
-                // Mark single notification as read
                 if (!in_array($notificationId, $readNotifications)) {
                     $readNotifications[] = $notificationId;
                     Session::put('read_notifications', $readNotifications);
@@ -477,89 +598,6 @@ class NotificationController extends Controller
         }
     }
 
-    public function getSummary(): JsonResponse
-    {
-        try {
-            $summary = [];
-
-            // Stock summary (for admins) - WITH VALIDATION
-            if ($this->isAdmin()) {
-                $stockSummary = DB::table('items')
-                    ->selectRaw('
-                        COUNT(*) as total_items,
-                        SUM(CASE WHEN quantity <= 0 THEN 1 ELSE 0 END) as out_of_stock,
-                        SUM(CASE WHEN quantity > 0 AND quantity <= 3 THEN 1 ELSE 0 END) as low_stock,
-                        SUM(CASE WHEN quantity > 3 THEN 1 ELSE 0 END) as normal_stock
-                    ')
-                    ->where('active', 'true')
-                    ->whereNotNull('name')
-                    ->where('name', '!=', '')
-                    ->where('name', 'NOT LIKE', '%deleted%') // ADDED
-                    ->whereNull('deleted_at') // ADDED
-                    ->first();
-
-                $summary['stock'] = [
-                    'total_items' => $stockSummary->total_items ?? 0,
-                    'out_of_stock' => $stockSummary->out_of_stock ?? 0,
-                    'low_stock' => $stockSummary->low_stock ?? 0,
-                    'normal_stock' => $stockSummary->normal_stock ?? 0
-                ];
-
-                // Leave summary for admin
-                $leaveSummary = DB::table('leave_applications')
-                    ->selectRaw('
-                        COUNT(*) as total_applications,
-                        SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_count,
-                        SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as approved_count,
-                        SUM(CASE WHEN status = "rejected" THEN 1 ELSE 0 END) as rejected_count
-                    ')
-                    ->whereNull('deleted_at') // ADDED
-                    ->first();
-
-                $summary['leave_admin'] = [
-                    'total_applications' => $leaveSummary->total_applications ?? 0,
-                    'pending_count' => $leaveSummary->pending_count ?? 0,
-                    'approved_count' => $leaveSummary->approved_count ?? 0,
-                    'rejected_count' => $leaveSummary->rejected_count ?? 0
-                ];
-            }
-
-            // User's leave summary
-            $userId = Auth::id();
-            if ($userId) {
-                $userLeaveSummary = DB::table('leave_applications')
-                    ->where('user_id', $userId)
-                    ->whereNull('deleted_at') // ADDED
-                    ->selectRaw('
-                        COUNT(*) as total_applications,
-                        SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_count,
-                        SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as approved_count,
-                        SUM(CASE WHEN status = "rejected" THEN 1 ELSE 0 END) as rejected_count
-                    ')
-                    ->first();
-
-                $summary['leave_user'] = [
-                    'total_applications' => $userLeaveSummary->total_applications ?? 0,
-                    'pending_count' => $userLeaveSummary->pending_count ?? 0,
-                    'approved_count' => $userLeaveSummary->approved_count ?? 0,
-                    'rejected_count' => $userLeaveSummary->rejected_count ?? 0
-                ];
-            }
-
-            return response()->json([
-                'success' => true,
-                'summary' => $summary
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error getting summary: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'error' => 'Failed to get summary'
-            ], 500);
-        }
-    }
-
     private function isAdmin(): bool
     {
         try {
@@ -586,14 +624,5 @@ class NotificationController extends Controller
             Log::error('Error checking admin status: ' . $e->getMessage());
             return false;
         }
-    }
-
-    public function test(): JsonResponse
-    {
-        if (!$this->isAdmin()) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        return $this->getNotifications();
     }
 }

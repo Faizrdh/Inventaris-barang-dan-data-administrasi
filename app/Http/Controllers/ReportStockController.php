@@ -8,7 +8,6 @@ use Illuminate\View\View;
 use App\Models\GoodsIn;
 use App\Models\GoodsOut;
 use App\Models\Item;
-use App\Services\StockService;
 use Yajra\DataTables\DataTables;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -17,55 +16,29 @@ use Illuminate\Support\Facades\Log;
 
 class ReportStockController extends Controller
 {
-    protected $stockService;
-
-    public function __construct(StockService $stockService)
-    {
-        $this->stockService = $stockService;
-    }
-
     public function index(): View
     {
-        // Pastikan hanya admin yang bisa akses
-        if(Auth::user()->role->name !== 'admin' && Auth::user()->role_id !== 1) {
-            abort(403, 'Unauthorized access');
-        }
-        
-        // Get stock summary for dashboard
-        $stockSummary = $this->stockService->getStockSummary();
-        
-        return view('admin.master.laporan.stok', compact('stockSummary'));
+        // Hapus pengecekan role admin - semua user dapat mengakses
+        return view('admin.master.laporan.stok');
     }
 
     public function list(Request $request): JsonResponse
     {
         try {
-            // Pastikan hanya admin yang bisa akses
-            if(Auth::user()->role->name !== 'admin' && Auth::user()->role_id !== 1) {
-                return response()->json([
-                    'error' => 'Unauthorized access'
-                ], 403);
-            }
+            // Hapus pengecekan role admin - semua user dapat mengakses
 
             if($request->ajax()) {
                 $startDate = $request->start_date;
                 $endDate = $request->end_date;
                 
-                // Ambil semua item yang aktif dengan real-time stock
+                // Ambil semua item yang aktif
                 $items = Item::with(['unit', 'category'])->where('active', 'true')->get();
                 
                 $stockData = [];
                 
                 foreach($items as $item) {
-                    // Use StockService untuk perhitungan yang akurat
-                    $stockInfo = $this->stockService->calculateStockForPeriod(
-                        $item->id, 
-                        $startDate, 
-                        $endDate
-                    );
-                    
-                    // Get real-time current stock
-                    $currentStock = $this->stockService->calculateCurrentStock($item->id);
+                    // Perhitungan stock sederhana
+                    $stockInfo = $this->calculateStockForPeriod($item->id, $startDate, $endDate);
                     
                     $stockData[] = [
                         'id' => $item->id,
@@ -76,9 +49,8 @@ class ReportStockController extends Controller
                         'jumlah_masuk' => $stockInfo['incoming'],
                         'jumlah_keluar' => $stockInfo['outgoing'],
                         'total' => $stockInfo['final_stock'],
-                        'current_stock' => $currentStock,
                         'unit' => $item->unit->name ?? '-',
-                        'status' => $this->getStockStatus($currentStock),
+                        'status' => $this->getStockStatus($stockInfo['final_stock']),
                         'last_updated' => now()->format('Y-m-d H:i:s')
                     ];
                 }
@@ -102,12 +74,6 @@ class ReportStockController extends Controller
                                     number_format($data['total']) . ' ' . $data['unit'] . 
                                 '</span>';
                     })
-                    ->addColumn('current_stock_formatted', function($data) {
-                        $class = $data['current_stock'] <= 0 ? 'text-danger' : ($data['current_stock'] <= 3 ? 'text-warning' : 'text-success');
-                        $badge = $data['current_stock'] <= 0 ? 'badge-danger' : ($data['current_stock'] <= 3 ? 'badge-warning' : 'badge-success');
-                        
-                        return '<span class="badge ' . $badge . '">' . number_format($data['current_stock']) . ' ' . $data['unit'] . '</span>';
-                    })
                     ->addColumn('status_badge', function($data) {
                         $status = $data['status'];
                         $badges = [
@@ -119,17 +85,7 @@ class ReportStockController extends Controller
                         
                         return $badges[$status] ?? '<span class="badge badge-secondary">Unknown</span>';
                     })
-                    ->addColumn('actions', function($data) {
-                        return '
-                            <button class="btn btn-sm btn-info view-movements" data-id="' . $data['id'] . '" title="View Movements">
-                                <i class="fas fa-history"></i>
-                            </button>
-                            <button class="btn btn-sm btn-primary refresh-stock" data-id="' . $data['id'] . '" title="Refresh Stock">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                        ';
-                    })
-                    ->rawColumns(['jumlah_masuk_formatted', 'jumlah_keluar_formatted', 'total_formatted', 'current_stock_formatted', 'status_badge', 'actions'])
+                    ->rawColumns(['jumlah_masuk_formatted', 'jumlah_keluar_formatted', 'total_formatted', 'status_badge'])
                     ->make(true);
             }
             
@@ -147,167 +103,59 @@ class ReportStockController extends Controller
     }
 
     /**
-     * Get stock movements for specific item
+     * Calculate stock for specific period - simplified version
      */
-    public function getMovements(Request $request): JsonResponse
+    private function calculateStockForPeriod($itemId, $startDate = null, $endDate = null)
     {
         try {
-            $itemId = $request->item_id;
-            $startDate = $request->start_date;
-            $endDate = $request->end_date;
-
-            if (!$itemId) {
-                return response()->json([
-                    'error' => 'Item ID is required'
-                ], 400);
-            }
-
             $item = Item::find($itemId);
             if (!$item) {
-                return response()->json([
-                    'error' => 'Item not found'
-                ], 404);
+                return [
+                    'initial_stock' => 0,
+                    'incoming' => 0,
+                    'outgoing' => 0,
+                    'final_stock' => 0
+                ];
             }
 
-            $movements = $this->stockService->getStockMovements($itemId, $startDate, $endDate);
-            $currentStock = $this->stockService->calculateCurrentStock($itemId);
+            // current stock
+            $currentStock = $item->quantity ?? 0;
 
-            return response()->json([
-                'success' => true,
-                'item' => [
-                    'id' => $item->id,
-                    'name' => $item->name,
-                    'code' => $item->code,
-                    'current_stock' => $currentStock,
-                    'unit' => $item->unit->name ?? ''
-                ],
-                'movements' => $movements,
-                'total_movements' => count($movements)
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error getting stock movements: ' . $e->getMessage());
-            return response()->json([
-                'error' => 'Error getting stock movements: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Refresh stock for specific item
-     */
-    public function refreshStock(Request $request): JsonResponse
-    {
-        try {
-            $itemId = $request->item_id;
-
-            if (!$itemId) {
-                return response()->json([
-                    'error' => 'Item ID is required'
-                ], 400);
+            $incomingQuery = GoodsIn::where('item_id', $itemId);
+            if ($startDate && $endDate) {
+                $incomingQuery->whereBetween('date_received', [$startDate, $endDate]);
             }
+            $incoming = $incomingQuery->sum('quantity') ?? 0;
 
-            $item = Item::find($itemId);
-            if (!$item) {
-                return response()->json([
-                    'error' => 'Item not found'
-                ], 404);
+            $outgoingQuery = GoodsOut::where('item_id', $itemId);
+            if ($startDate && $endDate) {
+                $outgoingQuery->whereBetween('date_out', [$startDate, $endDate]);
             }
+            $outgoing = $outgoingQuery->sum('quantity') ?? 0;
 
-            // Recalculate stock
-            $oldQuantity = $item->quantity;
-            $newQuantity = $this->stockService->calculateCurrentStock($itemId);
-            
-            $item->quantity = $newQuantity;
-            $item->active = $newQuantity > 0 ? 'true' : 'false';
-            $item->save();
+            // hitung jumlah stok
+            $initialStock = $startDate && $endDate ? 
+                max(0, $currentStock - $incoming + $outgoing) : 
+                max(0, $currentStock - $incoming + $outgoing);
 
-            Log::info('Stock manually refreshed', [
-                'item_id' => $itemId,
-                'item_name' => $item->name,
-                'old_quantity' => $oldQuantity,
-                'new_quantity' => $newQuantity,
-                'user_id' => Auth::id()
-            ]);
+            // Final stock calculation
+            $finalStock = $initialStock + $incoming - $outgoing;
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Stock updated successfully',
-                'item' => [
-                    'id' => $item->id,
-                    'name' => $item->name,
-                    'old_quantity' => $oldQuantity,
-                    'new_quantity' => $newQuantity,
-                    'difference' => $newQuantity - $oldQuantity
-                ]
-            ]);
+            return [
+                'initial_stock' => $initialStock,
+                'incoming' => $incoming,
+                'outgoing' => $outgoing,
+                'final_stock' => max(0, $finalStock)
+            ];
 
         } catch (\Exception $e) {
-            Log::error('Error refreshing stock: ' . $e->getMessage());
-            return response()->json([
-                'error' => 'Error refreshing stock: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Recalculate all stock
-     */
-    public function recalculateAllStock(): JsonResponse
-    {
-        try {
-            // Check admin permission
-            if(Auth::user()->role->name !== 'admin' && Auth::user()->role_id !== 1) {
-                return response()->json([
-                    'error' => 'Unauthorized access'
-                ], 403);
-            }
-
-            $result = $this->stockService->recalculateAllStock();
-
-            Log::info('All stock recalculated', [
-                'updated' => $result['updated'],
-                'errors' => $result['errors'],
-                'user_id' => Auth::id()
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => "Stock recalculated for {$result['updated']} items",
-                'result' => $result
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error recalculating all stock: ' . $e->getMessage());
-            return response()->json([
-                'error' => 'Error recalculating stock: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get real-time stock summary
-     */
-    public function getSummary(): JsonResponse
-    {
-        try {
-            $summary = $this->stockService->getStockSummary();
-            $lowStockItems = $this->stockService->getLowStockItems();
-            $outOfStockItems = $this->stockService->getOutOfStockItems();
-
-            return response()->json([
-                'success' => true,
-                'summary' => $summary,
-                'low_stock_items' => array_slice($lowStockItems, 0, 10), // Limit to 10
-                'out_of_stock_items' => array_slice($outOfStockItems, 0, 10), // Limit to 10
-                'timestamp' => now()->toISOString()
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error getting stock summary: ' . $e->getMessage());
-            return response()->json([
-                'error' => 'Error getting stock summary: ' . $e->getMessage()
-            ], 500);
+            Log::error('Error calculating stock for item ' . $itemId . ': ' . $e->getMessage());
+            return [
+                'initial_stock' => 0,
+                'incoming' => 0,
+                'outgoing' => 0,
+                'final_stock' => 0
+            ];
         }
     }
 
@@ -328,55 +176,14 @@ class ReportStockController extends Controller
     }
 
     /**
-     * Export stock report
+     * Grafik method - placeholder
      */
-    public function export(Request $request)
+    public function grafik()
     {
-        // TODO: Implementasi export PDF/Excel dengan data real-time
-        // Bisa menggunakan library seperti maatwebsite/excel atau dompdf
-        
-        try {
-            $startDate = $request->start_date;
-            $endDate = $request->end_date;
-            $format = $request->format ?? 'excel'; // excel, pdf, csv
-            
-            // Get stock data
-            $items = Item::with(['unit', 'category'])->where('active', 'true')->get();
-            $stockData = [];
-            
-            foreach($items as $item) {
-                $stockInfo = $this->stockService->calculateStockForPeriod(
-                    $item->id, 
-                    $startDate, 
-                    $endDate
-                );
-                
-                $stockData[] = [
-                    'kode_barang' => $item->code,
-                    'nama_barang' => $item->name,
-                    'kategori' => $item->category->name ?? '-',
-                    'stok_awal' => $stockInfo['initial_stock'],
-                    'barang_masuk' => $stockInfo['incoming'],
-                    'barang_keluar' => $stockInfo['outgoing'],
-                    'stok_akhir' => $stockInfo['final_stock'],
-                    'satuan' => $item->unit->name ?? '-',
-                    'status' => $this->getStockStatus($stockInfo['final_stock'])
-                ];
-            }
-            
-            // Return response berdasarkan format
-            return response()->json([
-                'success' => true,
-                'message' => 'Export functionality will be implemented',
-                'data_count' => count($stockData),
-                'format' => $format
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error('Error exporting stock report: ' . $e->getMessage());
-            return response()->json([
-                'error' => 'Error exporting report: ' . $e->getMessage()
-            ], 500);
-        }
+        // Placeholder untuk grafik method jika diperlukan
+        return response()->json([
+            'success' => true,
+            'message' => 'Grafik functionality will be implemented'
+        ]);
     }
 }

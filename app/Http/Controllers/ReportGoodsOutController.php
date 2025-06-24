@@ -15,24 +15,12 @@ class ReportGoodsOutController extends Controller
 {
     public function index(): View 
     {
-        // Cek role admin seperti pada EmployeeController
-        if(Auth::user()->role->name != 'admin' && Auth::user()->role_id !== 1){
-            abort(403, 'Akses tidak diizinkan untuk halaman ini.');
-        }
-        
         return view('admin.master.laporan.keluar');
     }
 
     public function list(Request $request): JsonResponse
     {
         try {
-            // Cek role admin seperti pada EmployeeController  
-            if(Auth::user()->role->name != 'admin' && Auth::user()->role_id !== 1){
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Unauthorized access'
-                ], 403);
-            }
 
             if($request->ajax()) {
                 try {

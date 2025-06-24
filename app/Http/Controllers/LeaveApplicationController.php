@@ -72,8 +72,6 @@ class LeaveApplicationController extends Controller
             if (!$leaveApplication->save()) {
                 return $this->errorResponse(__("Failed to save"), 400);
             }
-
-            // Kirim email ke supervisor dengan validasi yang lebih baik
             $this->sendEmailToSupervisor($leaveApplication);
 
             return $this->successResponse(__("Saved successfully"));
@@ -104,7 +102,6 @@ class LeaveApplicationController extends Controller
     public function update(Request $request): JsonResponse
     {
         try {
-            // Pastikan hanya employee yang bisa mengupdate data
             if (Auth::user()->role->name !== 'employee') {
                 return $this->errorResponse(__("Unauthorized access"), 403);
             }
@@ -117,7 +114,6 @@ class LeaveApplicationController extends Controller
                 return $this->errorResponse(__("Not found."), 404);
             }
 
-            // Tambahkan pengecekan ownership - employee hanya bisa edit data miliknya sendiri
             if ($leaveApplication->user_id !== Auth::id()) {
                 return $this->errorResponse(__("Unauthorized access"), 403);
             }
@@ -147,7 +143,6 @@ class LeaveApplicationController extends Controller
     public function delete(Request $request): JsonResponse
     {
         try {
-            // Pastikan hanya employee yang bisa menghapus data
             if (Auth::user()->role->name !== 'employee') {
                 return $this->errorResponse(__("Unauthorized access"), 403);
             }
@@ -188,17 +183,14 @@ class LeaveApplicationController extends Controller
 
     public function approve(Request $request): JsonResponse
     {
-        // Method ini untuk supervisor/admin - tambahkan authorization sesuai kebutuhan
         return $this->processApplication($request, 'approved', __("Cuti berhasil disetujui"));
     }
 
     public function reject(Request $request): JsonResponse
     {
-        // Method ini untuk supervisor/admin - tambahkan authorization sesuai kebutuhan
         return $this->processApplication($request, 'rejected', __("Cuti berhasil di tolak"));
     }
 
-    // Method terpisah untuk mengirim email ke supervisor
     private function sendEmailToSupervisor(LeaveApplication $leaveApplication): void
     {
         try {

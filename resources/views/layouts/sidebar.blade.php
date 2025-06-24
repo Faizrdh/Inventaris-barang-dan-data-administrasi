@@ -198,7 +198,6 @@
         </li>
         
         {{-- sidebar Laporan Barang admin only --}}
-@if(Auth::check() && (Auth::user()->role->name == 'admin' || Auth::user()->role_id === 1))
 <li class="nav-item {{ request()->routeIs('laporan.masuk*') || request()->routeIs('laporan.keluar*') || request()->routeIs('laporan.stok*') ? 'menu-open' : '' }}">
   <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('laporan.masuk*') || request()->routeIs('laporan.keluar*') || request()->routeIs('laporan.stok*') ? 'active' : '' }}">
     <i class="nav-icon fas fa-print"></i>
@@ -228,8 +227,6 @@
     </li>
   </ul>
 </li>
-@endif
-@if(Auth::check() && (Auth::user()->role->name == 'admin' || Auth::user()->role_id === 1))
 <li class="nav-item {{ request()->routeIs('laporan.surat-*') ? 'menu-open' : '' }}">
     <a href="javascript:void(0)" class="nav-link text-white {{ request()->routeIs('laporan.surat-*') ? 'active' : '' }}">
         <i class="nav-icon fas fa-print"></i>
@@ -256,7 +253,6 @@
         </li>
     </ul>
 </li>
-@endif
         
 
         <li class="nav-header">{{ __("others") }}</li>

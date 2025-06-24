@@ -114,23 +114,6 @@
             </div>
           </div>
 
-          {{-- <div class="col-lg-3 col-6">
-            <!-- small box -->
-            <div class="small-box bg-purple">
-              <div class="inner">
-                <h3>{{$cuti}}</h3>
-
-                <p class="font-weight-bold">{{ __("cuti") }}</p>
-              </div>
-              <div class="icon">
-                <i class="ion ion-android-person"></i>
-              </div>
-              <a href="{{route('cuti')}}" class="small-box-footer">{{ __('messages.more-info') }} <i class="fas fa-arrow-circle-right"></i></a>
-            </div>
-          </div> --}}
-
-
-
           <div class="col-lg-3 col-6">
             <!-- small box -->
             <div class="small-box bg-purple">

@@ -16,8 +16,7 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     /**
-     * The attributes that are mass assignable.
-     *
+    
      * @var array<int, string>
      */
     protected $fillable = [
@@ -29,9 +28,6 @@ class User extends Authenticatable
     ];
 
     // * Check if user is administrator
-    // *
-    // * @return bool
-    // */
   // Tambahkan metode ini di model User.php jika yang existing tidak berfungsi
 public function getIsAdminAttribute()
 {
@@ -49,8 +45,6 @@ public function getIsAdminAttribute()
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
      * @return array<string, string>
      */
     protected function casts(): array
