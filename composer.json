@@ -41,6 +41,11 @@
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
         ],
+        "post-install-cmd": [
+            "Illuminate\\Foundation\\ComposerScripts::postInstall",
+            "@php artisan config:cache",
+            "@php artisan route:cache"
+        ],
         "post-root-package-install": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
         ],
@@ -66,4 +71,5 @@
     },
     "minimum-stability": "stable",
     "prefer-stable": true
+    
 }
