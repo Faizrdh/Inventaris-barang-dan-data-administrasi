@@ -1,0 +1,128 @@
+name: Deploy to Niagahoster
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+  REMOTE_USER: ${{ secrets.REMOTE_USER }}
+  REMOTE_TARGET: ${{ secrets.REMOTE_TARGET }}
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 🔄 Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: 🐘 Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, iconv, intl, pdo_mysql, dom, filter, gd, json, pdo, tokenizer, zip
+        coverage: none
+        
+    - name: 📦 Get Composer Cache Directory
+      id: composer-cache
+      run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+      
+    - name: 🔧 Cache Composer Dependencies
+      uses: actions/cache@v3
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: ${{ runner.os }}-composer-
+        
+    - name: 📋 Install Composer Dependencies
+      run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+      
+    - name: 🚀 Deploy to Server via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ env.REMOTE_HOST }}
+        username: ${{ env.REMOTE_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          echo "🔄 Starting deployment process..."
+          
+          # Navigate to website directory
+          cd ${{ env.REMOTE_TARGET }}
+          
+          # Check if git is initialized
+          if [ ! -d ".git" ]; then
+            echo "🔧 Initializing git repository..."
+            git init
+            git remote add origin https://github.com/Faizrdh/Inventaris-barang-dan-data-administrasi.git
+            git config user.name "Faizrdh"
+            git config user.email "faizridho649@gmail.com"
+          fi
+          
+          # Backup current version
+          echo "💾 Creating backup..."
+          if [ -d "backup" ]; then rm -rf backup; fi
+          mkdir -p backup
+          cp -r app backup/ 2>/dev/null || true
+          cp -r config backup/ 2>/dev/null || true
+          cp -r database backup/ 2>/dev/null || true
+          cp -r routes backup/ 2>/dev/null || true
+          cp -r resources backup/ 2>/dev/null || true
+          cp .env backup/ 2>/dev/null || true
+          
+          # Pull latest changes from GitHub
+          echo "📥 Pulling latest changes..."
+          git fetch origin main
+          git reset --hard origin/main
+          
+          # Install/Update Composer dependencies
+          echo "📦 Installing dependencies..."
+          composer install --no-dev --optimize-autoloader --no-interaction
+          
+          # Clear all caches
+          echo "🧹 Clearing caches..."
+          php artisan config:clear || true
+          php artisan route:clear || true
+          php artisan view:clear || true
+          php artisan cache:clear || true
+          
+          # Run database migrations
+          echo "🗄️ Running migrations..."
+          php artisan migrate --force || true
+          
+          # Optimize for production
+          echo "⚡ Optimizing for production..."
+          php artisan config:cache || true
+          php artisan route:cache || true
+          php artisan view:cache || true
+          
+          # Set correct permissions
+          echo "🔐 Setting permissions..."
+          find storage -type f -exec chmod 644 {} \; 2>/dev/null || true
+          find storage -type d -exec chmod 755 {} \; 2>/dev/null || true
+          find bootstrap/cache -type f -exec chmod 644 {} \; 2>/dev/null || true
+          find bootstrap/cache -type d -exec chmod 755 {} \; 2>/dev/null || true
+          
+          # Clear opcache if available
+          echo "🔄 Clearing OPCache..."
+          php -r "if(function_exists('opcache_reset')) opcache_reset();" 2>/dev/null || true
+          
+          echo "✅ Deployment completed successfully!"
+          echo "🌐 Website: https://primasiyankes.id"
+          
+    - name: 📧 Log Deployment Status
+      if: always()
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ env.REMOTE_HOST }}
+        username: ${{ env.REMOTE_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          echo "📊 Deployment Summary - $(date)" >> deployment.log
+          echo "Repository: ${{ github.repository }}" >> deployment.log
+          echo "Commit: ${{ github.sha }}" >> deployment.log
+          echo "Branch: ${{ github.ref_name }}" >> deployment.log
+          echo "Status: Completed" >> deployment.log
+          echo "---" >> deployment.log
